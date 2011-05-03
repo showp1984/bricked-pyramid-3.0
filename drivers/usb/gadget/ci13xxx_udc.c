@@ -2586,7 +2586,6 @@ static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-
 /**
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
