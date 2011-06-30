@@ -9,9 +9,3 @@ config ION_TEGRA
 	depends on ARCH_TEGRA && ION
 	help
 	  Choose this option if you wish to use ion on an nVidia Tegra.
-
-config ION_MSM
-	tristate "Ion for MSM"
-	depends on ARCH_MSM && ION
-	help
-	  Choose this option if you wish to use ion on an MSM target.
