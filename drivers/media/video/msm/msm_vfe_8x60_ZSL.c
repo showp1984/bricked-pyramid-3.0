@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <mach/irqs.h>
 #include <mach/camera-8x60.h>
-#include <mach/msm_reqs.h>
 #include <asm/atomic.h>
 
 #include "msm_vfe_8x60_ZSL.h"

@@ -75,7 +75,6 @@
 #include <mach/clk.h>
 #include <linux/io.h>
 #include <linux/android_pmem.h>
-/*#include <mach/msm_reqs.h>*/
 #ifdef CONFIG_MSM_CAMERA_7X30
 #include <mach/camera-7x30.h>
 #elif defined(CONFIG_MSM_CAMERA_8X60)
@@ -86,13 +85,8 @@
 #include "msm_gemini_common.h"
 #include "msm_gemini_hw.h"
 
-#ifdef CONFIG_MSM_NPA_SYSTEM_BUS
-/* NPA Flow ID */
-#define MSM_SYSTEM_BUS_RATE	MSM_AXI_FLOW_JPEG_12MP
-#else
 /* AXI rate in KHz */
 #define MSM_SYSTEM_BUS_RATE	160000
-#endif
 
 void msm_gemini_platform_p2v(struct file  *file)
 {
@@ -205,4 +199,3 @@ int msm_gemini_platform_release(struct resource *mem, void *base, int irq,
 	GMN_DBG("%s:%d] success\n", __func__, __LINE__);
 	return result;
 }
-

@@ -24,7 +24,6 @@
 #include <linux/smsc911x.h>
 #include <linux/usb/msm_hsusb.h>
 #include <linux/clkdev.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/memory.h>
