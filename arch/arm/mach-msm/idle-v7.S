@@ -50,9 +50,17 @@ ENTRY(msm_pm_collapse)
 	mrc	p15, 0, r1, c0, c0, 5	/* MPIDR */
 	ands	r1, r1, #15		/* What CPU am I */
 	addne	r0, r0, #CPU_SAVED_STATE_SIZE
+#else
+	ldr	r1, =0				/* single cpu, set current cpu to 0. */
+#endif
+	ldr	r2, =cur_cpu
+	str	r1, [r2]			/* store current cpu number for later use. */
+#if defined(CONFIG_THUMB2_KERNEL)
+	stmia   r0!, {r4-r11}
+#else
+	stmia   r0!, {r4-r14}
 #endif
 
-	stmia   r0!, {r4-r14}
 	mrc     p15, 0, r1, c1, c0, 0 /* MMU control */
 	mrc     p15, 0, r2, c2, c0, 0 /* TTBR0 */
 	mrc     p15, 0, r3, c3, c0, 0 /* dacr */
@@ -139,8 +147,11 @@ skip:	ldr	r0, =saved_state
 	ands	r1, r1, #15		/* What CPU am I */
 	addne	r0, r0, #CPU_SAVED_STATE_SIZE
 #endif
-
+#if defined(CONFIG_THUMB2_KERNEL)
+	ldmfd   r0, {r4-r11}
+#else
 	ldmfd   r0, {r4-r14}
+#endif
 	mov     r0, #0                   /* return power collapse failed */
 	bx      lr
 
@@ -193,7 +204,11 @@ _cpu_early_init_complete:
 	mcr     p15, 0, r10, c13, c0, 3 /* TPIDRURO */
 	mcr     p15, 0, r11, c13, c0, 1 /* context ID */
 	isb
+#if defined(CONFIG_THUMB2_KERNEL)
+	ldmdb   r1!, {r4-r11}
+#else
 	ldmdb   r1!, {r4-r14}
+#endif
 	ldr	r0, =msm_pm_pc_pgd
 	ldr	r1, =msm_pm_collapse_exit
 	adr	r3, msm_pm_collapse_exit
@@ -280,6 +295,8 @@ saved_state:
 #endif
 saved_state_end:
 
+cur_cpu:
+	.space	4 /* store current cpu number */
 msm_pm_boot_vector:
 	.space  4 * NR_CPUS
 
