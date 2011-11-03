@@ -820,7 +820,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	journal_t *journal = journal_init_common();
 	int err;
 	int n;
-	unsigned int blocknr;
+	unsigned int blocknr = 0;
 
 	if (!journal)
 		return NULL;
