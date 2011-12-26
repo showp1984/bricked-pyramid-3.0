@@ -1773,6 +1773,14 @@ __acquires(mEp->lock)
 		list_del_init(&mReq->queue);
 		mReq->req.status = -ESHUTDOWN;
 
+		if (mReq->map) {
+			dma_unmap_single(mEp->device, mReq->req.dma,
+				mReq->req.length,
+				mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			mReq->req.dma = 0;
+			mReq->map     = 0;
+		}
+
 		if (mReq->req.complete != NULL) {
 			spin_unlock(mEp->lock);
 			if ((mEp->type == USB_ENDPOINT_XFER_CONTROL) &&
