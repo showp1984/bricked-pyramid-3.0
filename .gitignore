@@ -59,6 +59,16 @@ include/linux/version.h
 include/generated
 arch/*/include/generated
 
+#
+# Generated build output
+#
+arch/arm/boot/compressed/lib1funcs.S
+arch/arm/boot/compressed/ashldi3.S
+arch/arm/boot/compressed/piggy.gzip
+arch/arm/boot/compressed/piggy.xzkern
+arch/arm/boot/compressed/vmlinux
+arch/arm/mach-msm/smd_rpc_sym.c
+
 # stgit generated dirs
 patches-*
 
