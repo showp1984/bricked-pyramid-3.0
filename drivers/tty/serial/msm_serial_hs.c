@@ -3,7 +3,7 @@
  * MSM 7k High speed uart driver
  *
  * Copyright (c) 2008 Google Inc.
- * Copyright (c) 2007-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
  * Modified: Nick Pelly <npelly@google.com>
  *
  * All source code in this file is licensed under the following license
@@ -658,7 +658,6 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
 	spin_lock_irqsave(&uport->lock, flags);
-	clk_enable(msm_uport->clk);
 
 	/*
 	 * Disable Rx channel of UARTDM
@@ -766,9 +765,7 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	}
 
 	msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
-	/* calling other hardware component here clk_disable API. */
 	mb();
-	clk_disable(msm_uport->clk);
 	spin_unlock_irqrestore(&uport->lock, flags);
 }
 
@@ -780,15 +777,10 @@ unsigned int msm_hs_tx_empty(struct uart_port *uport)
 {
 	unsigned int data;
 	unsigned int ret = 0;
-	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
-
-	clk_enable(msm_uport->clk);
 
 	data = msm_hs_read(uport, UARTDM_SR_ADDR);
 	if (data & UARTDM_SR_TXEMT_BMSK)
 		ret = TIOCSER_TEMT;
-
-	clk_disable(msm_uport->clk);
 
 	return ret;
 }
@@ -819,8 +811,6 @@ static void msm_hs_stop_rx_locked(struct uart_port *uport)
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	unsigned int data;
 
-	clk_enable(msm_uport->clk);
-
 	/* disable dlink */
 	data = msm_hs_read(uport, UARTDM_DMEN_ADDR);
 	data &= ~UARTDM_RX_DM_EN_BMSK;
@@ -837,8 +827,6 @@ static void msm_hs_stop_rx_locked(struct uart_port *uport)
 	}
 	if (msm_uport->rx.flush != FLUSH_SHUTDOWN)
 		msm_uport->rx.flush = FLUSH_STOP;
-
-	clk_disable(msm_uport->clk);
 }
 
 /*  Transmit the next chunk of data */
@@ -1013,7 +1001,6 @@ static void msm_serial_hs_rx_tlet(unsigned long tlet_ptr)
 
 	spin_lock_irqsave(&uport->lock, flags);
 
-	clk_enable(msm_uport->clk);
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
 
 	/* overflow is not connect to data in a FIFO */
@@ -1087,7 +1074,6 @@ out:
 		schedule_delayed_work(&msm_uport->rx.flip_insert_work
 				      , msecs_to_jiffies(RETRY_TIMEOUT));
 	}
-	clk_disable(msm_uport->clk);
 	/* release wakelock in 500ms, not immediately, because higher layers
 	 * don't always take wakelocks when they should */
 	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 2);
@@ -1102,15 +1088,11 @@ static void msm_hs_start_tx_locked(struct uart_port *uport )
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	clk_enable(msm_uport->clk);
-
 	if (msm_uport->tx.tx_ready_int_en == 0) {
 		msm_uport->tx.tx_ready_int_en = 1;
 		if (msm_uport->tx.dma_in_flight == 0)
 			msm_hs_submit_tx_locked(uport);
 	}
-
-	clk_disable(msm_uport->clk);
 }
 
 /*
@@ -1140,14 +1122,12 @@ static void msm_serial_hs_tx_tlet(unsigned long tlet_ptr)
 				tlet_ptr, struct msm_hs_port, tx.tlet);
 
 	spin_lock_irqsave(&(msm_uport->uport.lock), flags);
-	clk_enable(msm_uport->clk);
 
 	msm_uport->imr_reg |= UARTDM_ISR_TX_READY_BMSK;
 	msm_hs_write(&(msm_uport->uport), UARTDM_IMR_ADDR, msm_uport->imr_reg);
 	/* Calling clk API. Hence mb() requires. */
 	mb();
 
-	clk_disable(msm_uport->clk);
 	spin_unlock_irqrestore(&(msm_uport->uport.lock), flags);
 }
 
@@ -1200,9 +1180,6 @@ void msm_hs_set_mctrl_locked(struct uart_port *uport,
 {
 	unsigned int set_rts;
 	unsigned int data;
-	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
-
-	clk_enable(msm_uport->clk);
 
 	/* RTS is active low */
 	set_rts = TIOCM_RTS & mctrl ? 0 : 1;
@@ -1219,9 +1196,7 @@ void msm_hs_set_mctrl_locked(struct uart_port *uport,
 		data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
 		msm_hs_write(uport, UARTDM_MR1_ADDR, data);
 	}
-	/* Calling CLOCK API. Hence mb() requires. */
 	mb();
-	clk_disable(msm_uport->clk);
 }
 
 void msm_hs_set_mctrl(struct uart_port *uport,
@@ -1240,15 +1215,10 @@ static void msm_hs_enable_ms_locked(struct uart_port *uport)
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	clk_enable(msm_uport->clk);
-
 	/* Enable DELTA_CTS Interrupt */
 	msm_uport->imr_reg |= UARTDM_ISR_DELTA_CTS_BMSK;
 	msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
-	/* Calling CLOCK API. Hence mb() requires here. */
 	mb();
-
-	clk_disable(msm_uport->clk);
 
 }
 
@@ -1261,14 +1231,10 @@ static void msm_hs_enable_ms_locked(struct uart_port *uport)
 static void msm_hs_break_ctl(struct uart_port *uport, int ctl)
 {
 	unsigned long flags;
-	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
 	spin_lock_irqsave(&uport->lock, flags);
-	clk_enable(msm_uport->clk);
 	msm_hs_write(uport, UARTDM_CR_ADDR, ctl ? START_BREAK : STOP_BREAK);
-	/* Calling CLOCK API. Hence mb() requires here. */
 	mb();
-	clk_disable(msm_uport->clk);
 	spin_unlock_irqrestore(&uport->lock, flags);
 }
 
@@ -1297,17 +1263,11 @@ static void msm_hs_config_port(struct uart_port *uport, int cfg_flags)
 /*  Handle CTS changes (Called from interrupt handler) */
 static void msm_hs_handle_delta_cts_locked(struct uart_port *uport)
 {
-	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
-
-	clk_enable(msm_uport->clk);
-
 	/* clear interrupt */
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_CTS);
 	/* Calling CLOCK API. Hence mb() requires here. */
 	mb();
 	uport->icount.cts++;
-
-	clk_disable(msm_uport->clk);
 
 	/* clear the IOCTL TIOCMIWAIT if called */
 	wake_up_interruptible(&uport->state->port.delta_msr_wait);
@@ -2001,8 +1961,6 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	tasklet_kill(&msm_uport->rx.tlet);
 	cancel_delayed_work_sync(&msm_uport->rx.flip_insert_work);
 
-	clk_enable(msm_uport->clk);
-
 	pm_runtime_disable(uport->dev);
 	pm_runtime_set_suspended(uport->dev);
 
@@ -2020,7 +1978,6 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	 */
 	mb();
 
-	clk_disable(msm_uport->clk);  /* to balance local clk_enable() */
 	if (msm_uport->clk_state != MSM_HS_CLK_OFF) {
 		clk_disable(msm_uport->clk);  /* to balance clk_state */
 		if (msm_uport->pclk)
