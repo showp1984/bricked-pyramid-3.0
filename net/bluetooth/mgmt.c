@@ -1522,6 +1522,7 @@ static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 	}
 
 	pairing_complete(cmd, status);
+	hci_conn_put(conn);
 }
 
 static void pairing_security_complete_cb(struct hci_conn *conn, u8 status)
