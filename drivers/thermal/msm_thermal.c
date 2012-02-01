@@ -50,10 +50,7 @@ static int update_cpu_max_freq(struct cpufreq_policy *cpu_policy,
 	cpu_policy->user_policy.max = max_freq;
 
 	ret = cpufreq_update_policy(cpu);
-	if (ret)
-		pr_err("msm_thermal: cpufreq update to core%d %d err:%d\n",
-				cpu, max_freq, ret);
-	else
+	if (!ret)
 		pr_info("msm_thermal: Limiting core%d max frequency to %d\n",
 			cpu, max_freq);
 
