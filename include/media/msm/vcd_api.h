@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,6 +56,7 @@ enum vcd_power_state {
 struct vcd_frame_data {
 	u8 *virtual;
 	u8 *physical;
+	u32 ion_flag;
 	u32 alloc_len;
 	u32 data_len;
 	u32 offset;
