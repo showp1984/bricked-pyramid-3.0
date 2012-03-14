@@ -199,6 +199,7 @@ struct msm_fb_panel_data {
 	/* function entry chain */
 	int (*on) (struct platform_device *pdev);
 	int (*off) (struct platform_device *pdev);
+	int (*power_ctrl) (boolean enable);
 	void (*bklswitch) (struct msm_fb_data_type *, bool on);
 	void (*bklctrl) (bool on);
 	void (*bklenable) (struct msm_fb_data_type *);
