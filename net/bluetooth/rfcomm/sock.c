@@ -743,7 +743,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 	struct sock *sk = sock->sk;
 	struct sock *l2cap_sk;
 	struct rfcomm_conninfo cinfo;
-	struct l2cap_conn *conn = l2cap_pi(sk)->chan->conn;
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 	int len, err = 0;
 	u32 opt;
 
