@@ -1,0 +1,8 @@
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += sii9234.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += i2c_master_sw.o
+#obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += si_cpCbus.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += TPI.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += TPI_Access.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += Util.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += sii_mhltx.o
+obj-$(CONFIG_FB_MSM_HDMI_MHL_SII9234) += mhltx_rcptable.o
