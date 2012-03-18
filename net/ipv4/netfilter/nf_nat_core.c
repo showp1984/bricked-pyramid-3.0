@@ -531,7 +531,7 @@ EXPORT_SYMBOL(nf_nat_protocol_register);
 void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 {
 	spin_lock_bh(&nf_nat_lock);
-	rcu_assign_pointer(nf_nat_protos[proto->protonum],
+	rcu_assign_pointer_nonull(nf_nat_protos[proto->protonum],
 			   &nf_nat_unknown_protocol);
 	spin_unlock_bh(&nf_nat_lock);
 	synchronize_rcu();
@@ -742,10 +742,10 @@ static int __init nf_nat_init(void)
 	/* Sew in builtin protocols. */
 	spin_lock_bh(&nf_nat_lock);
 	for (i = 0; i < MAX_IP_NAT_PROTO; i++)
-		rcu_assign_pointer(nf_nat_protos[i], &nf_nat_unknown_protocol);
-	rcu_assign_pointer(nf_nat_protos[IPPROTO_TCP], &nf_nat_protocol_tcp);
-	rcu_assign_pointer(nf_nat_protos[IPPROTO_UDP], &nf_nat_protocol_udp);
-	rcu_assign_pointer(nf_nat_protos[IPPROTO_ICMP], &nf_nat_protocol_icmp);
+		rcu_assign_pointer_nonull(nf_nat_protos[i], &nf_nat_unknown_protocol);
+	rcu_assign_pointer_nonull(nf_nat_protos[IPPROTO_TCP], &nf_nat_protocol_tcp);
+	rcu_assign_pointer_nonull(nf_nat_protos[IPPROTO_UDP], &nf_nat_protocol_udp);
+	rcu_assign_pointer_nonull(nf_nat_protos[IPPROTO_ICMP], &nf_nat_protocol_icmp);
 	spin_unlock_bh(&nf_nat_lock);
 
 	/* Initialize fake conntrack so that NAT will skip it */
@@ -754,12 +754,12 @@ static int __init nf_nat_init(void)
 	l3proto = nf_ct_l3proto_find_get((u_int16_t)AF_INET);
 
 	BUG_ON(nf_nat_seq_adjust_hook != NULL);
-	rcu_assign_pointer(nf_nat_seq_adjust_hook, nf_nat_seq_adjust);
+	rcu_assign_pointer_nonull(nf_nat_seq_adjust_hook, nf_nat_seq_adjust);
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
-	rcu_assign_pointer(nfnetlink_parse_nat_setup_hook,
+	rcu_assign_pointer_nonull(nfnetlink_parse_nat_setup_hook,
 			   nfnetlink_parse_nat_setup);
 	BUG_ON(nf_ct_nat_offset != NULL);
-	rcu_assign_pointer(nf_ct_nat_offset, nf_nat_get_offset);
+	rcu_assign_pointer_nonull(nf_ct_nat_offset, nf_nat_get_offset);
 	return 0;
 
  cleanup_extend:

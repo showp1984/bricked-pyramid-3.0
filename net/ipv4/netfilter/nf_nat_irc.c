@@ -82,7 +82,7 @@ static void __exit nf_nat_irc_fini(void)
 static int __init nf_nat_irc_init(void)
 {
 	BUG_ON(nf_nat_irc_hook != NULL);
-	rcu_assign_pointer(nf_nat_irc_hook, help);
+	rcu_assign_pointer_nonull(nf_nat_irc_hook, help);
 	return 0;
 }
 
