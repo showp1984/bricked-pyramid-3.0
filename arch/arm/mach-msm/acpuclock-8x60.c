@@ -801,7 +801,7 @@ static unsigned int __init select_freq_plan(void)
 	uint32_t max_khz;
 	struct clkctl_acpu_speed *f;
 
-	max_khz = 15120000;
+	max_khz = 1914000;
 	acpu_freq_tbl = acpu_freq_tbl_oc;
 
 	/* Truncate the table based to max_khz. */
