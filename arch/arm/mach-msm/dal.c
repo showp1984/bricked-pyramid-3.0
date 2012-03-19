@@ -1305,7 +1305,7 @@ static int event_occurred(int num_events, struct dalrpc_event_handle **events,
 int dalrpc_event_wait_multiple(int num, void **ev_h, int timeout)
 {
 	struct dalrpc_event_handle **events;
-	int ret, occurred;
+	int ret = 0, occurred = 0;
 
 	events = (struct dalrpc_event_handle **)ev_h;
 
