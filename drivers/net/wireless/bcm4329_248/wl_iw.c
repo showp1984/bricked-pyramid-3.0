@@ -1093,7 +1093,7 @@ static int btcoex_dhcp_timer_start(struct net_device *dev)
 //#ifdef BTCOEX_TIMER_ENABLED
 	static char ioctlbuf[MAX_WLIW_IOCTL_LEN];
 	char buf_reg12va_sco_time[4] = { 12, 0, 0, 0};
-	int sco_lasttime = 0;
+	unsigned int sco_lasttime = 0;
 	int ret;
 
 	bcm_mkiovar("btc_params", (char*)&buf_reg12va_sco_time[0], sizeof(buf_reg12va_sco_time), ioctlbuf, sizeof(ioctlbuf));
