@@ -154,7 +154,7 @@ static unsigned int pyramid_wifi_status(struct device *dev)
 
 static unsigned int pyramid_wifislot_type = MMC_TYPE_SDIO_WIFI;
 static struct mmc_platform_data pyramid_wifi_data = {
-        .ocr_mask               = MMC_VDD_28_29,
+        .ocr_mask               = MMC_VDD_24_25,
         .status                 = pyramid_wifi_status,
         .register_status_notify = pyramid_wifi_status_register,
         .embedded_sdio          = &pyramid_wifi_emb_data,
