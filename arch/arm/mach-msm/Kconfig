@@ -1494,6 +1494,10 @@ config MSM_DALRPC_TEST
 	help
 	  Exercises DAL RPC calls to QDSP6.
 
+config CPU_VOLTAGE_TABLE
+	bool "Enable CPU Voltage Table via sysfs for adjustements"
+	default n
+
 if CPU_FREQ_MSM
 
 config MSM_CPU_FREQ_SET_MIN_MAX
