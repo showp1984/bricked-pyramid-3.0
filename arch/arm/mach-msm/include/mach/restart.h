@@ -46,7 +46,7 @@ enum RESTART_MODE {
 
 void set_ramdump_reason(const char *msg);
 inline void soc_restart(char mode, const char *msg);
-inline void notify_modem_cache_flush_done(void);
+/* inline */ void notify_modem_cache_flush_done(void);
 int check_in_panic(void);
 extern void send_q6_nmi(void);
 void msm_set_restart_mode(int mode);
