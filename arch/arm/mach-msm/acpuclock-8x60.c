@@ -46,6 +46,7 @@
 #define L_VAL_SCPLL_CAL_MAX	0x1C /* = 1512 MHz with 27MHz source */
 
 #define MAX_VDD_SC		1350000 /* uV */
+#define MIN_VDD_SC		 800000 /* uV */
 #define MAX_VDD_MEM		1350000 /* uV */
 #define MAX_VDD_DIG		1300000 /* uV */
 #define MAX_AXI			 310500 /* KHz */
@@ -605,6 +606,51 @@ unsigned int get_max_cpu_freq(void)
 	return f->acpuclk_khz;;
 }
 #endif
+
+#ifdef CONFIG_CPU_VOLTAGE_TABLE
+
+ssize_t acpuclk_get_vdd_levels_str(char *buf) {
+
+	int i, len = 0;
+
+	if (buf) {
+		mutex_lock(&drv_state.lock);
+
+		for (i = 0; acpu_freq_tbl[i].acpuclk_khz; i++) {
+			/* updated to use uv required by 8x60 architecture - faux123 */
+			len += sprintf(buf + len, "%8u: %8d\n", acpu_freq_tbl[i].acpuclk_khz, acpu_freq_tbl[i].vdd_sc );
+		}
+
+		mutex_unlock(&drv_state.lock);
+	}
+	return len;
+}
+
+/* updated to use uv required by 8x60 architecture - faux123 */
+void acpuclk_set_vdd(unsigned int khz, int vdd_uv) {
+
+	int i;
+	unsigned int new_vdd_uv;
+//	int vdd_uv;
+
+//	vdd_uv = vdd_mv * 1000;
+
+	mutex_lock(&drv_state.lock);
+
+	for (i = 0; acpu_freq_tbl[i].acpuclk_khz; i++) {
+		if (khz == 0)
+			new_vdd_uv = min(max((acpu_freq_tbl[i].vdd_sc + vdd_uv), (unsigned int)MIN_VDD_SC), (unsigned int)MAX_VDD_SC);
+		else if ( acpu_freq_tbl[i].acpuclk_khz == khz)
+			new_vdd_uv = min(max((unsigned int)vdd_uv, (unsigned int)MIN_VDD_SC), (unsigned int)MAX_VDD_SC);
+		else 
+			continue;
+
+		acpu_freq_tbl[i].vdd_sc = new_vdd_uv;
+	}
+
+	mutex_unlock(&drv_state.lock);
+}
+#endif	/* CONFIG_CPU_VOTALGE_TABLE */
 
 static void __init scpll_init(int sc_pll)
 {
