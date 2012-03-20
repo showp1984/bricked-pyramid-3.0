@@ -35,7 +35,7 @@
 #endif
 
 #ifdef CONFIG_FB_MSM_HDMI_MHL_SII9234
-#include "../video/msm_8x60/sii9234/TPI.h"
+#include "../video/msm/sii9234/TPI.h"
 #endif
 
 #ifdef CONFIG_INTERNAL_CHARGING_SUPPORT

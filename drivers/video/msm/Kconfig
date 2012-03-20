@@ -1,4 +1,6 @@
 
+source "drivers/video/msm/sii9234/Kconfig"
+
 source "drivers/video/msm/vidc/Kconfig"
 
 config FB_MSM
@@ -77,6 +79,16 @@ config FB_MSM_MDP40
 	  Say Y here if this is msm7x30 variant platform.
 endchoice
 
+config FB_MSM_LEGACY_MDP
+	bool
+	depends on FB_MSM && (MSM_MDP30 || MSM_MDP31 || MSM_MDP302)
+	default y
+
+config FB_MSM_MDP_PPP
+	bool
+	depends on FB_MSM_LEGACY_MDP
+	default y
+
 config FB_MSM_EBI2
 	bool
 	default n
@@ -90,12 +102,13 @@ config FB_MSM_MIPI_DSI
 	default n
 
 config FB_MSM_LCDC
-	bool
+	bool "Support for integrated LCD controller in qsd8x50, MSM7x27, MSM7x30 and MSM8x60"
+	depends on FB_MSM && (MSM_MDP31 || MSM_MDP302 || MSM_MDP40)
 	default n
 
 config FB_MSM_OVERLAY
-	depends on FB_MSM_MDP40 && ANDROID_PMEM
-	bool "MDP4 overlay support"
+	bool "Support for overlay in MSM7x30 and MSM8x60"
+	depends on FB_MSM && FB_MSM_MDP40
 	default n
 
 config FB_MSM_DTV
@@ -103,12 +116,40 @@ config FB_MSM_DTV
 	bool
 	default n
 
+config FB_MSM_MDP_ABL
+	bool "Support QCT auto backlight scaling"
+	depends on FB_MSM && (MSM_MDP40)
+	default n
+
+choice
+	prompt "Default framebuffer color depth"
+	depends on MSM_MDP40 || MSM_MDP31
+	default FB_MSM_8X60_DEFAULT_DEPTH_RGBA8888
+
+config FB_MSM_8X60_DEFAULT_DEPTH_RGB565
+	bool "16 bits per pixel (RGB565)"
+
+config FB_MSM_8X60_DEFAULT_DEPTH_ARGB8888
+	bool "32 bits per pixel (ARGB8888)"
+
+config FB_MSM_8X60_DEFAULT_DEPTH_RGBA8888
+	bool "32 bits per pixel (RGBA8888)"
+
+endchoice
+
+config FB_MSM_SELF_REFRESH
+	bool "Use self refresh"
+	depends on FB_MSM
+	default n
+
 config FB_MSM_EXTMDDI
 	bool
 	default n
 
 config FB_MSM_TVOUT
-	bool
+	bool "Support for TV-Out in qsd8x50"
+	depends on FB_MSM && (MSM_MDP31 || MSM_MDP40)
+	select FB_MSM_EXT_INTERFACE_COMMON
 	default n
 
 config FB_MSM_MDDI_TOSHIBA_COMMON
@@ -162,9 +203,19 @@ config FB_MSM_MIPI_DSI_SIMULATOR
 	default n
 
 config FB_MSM_MIPI_DSI_NOVATEK
-        bool
-        select FB_MSM_MIPI_DSI
-        default n
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+
+config FB_MSM_MIPI_DSI_HIMAX
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+
+config FB_MSM_MIPI_DSI_ORISE
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
 
 config FB_MSM_MIPI_DSI_TC358764_DSI2LVDS
 	bool
@@ -197,6 +248,16 @@ config FB_MSM_LCDC_SAMSUNG_WSVGA
 	bool
 	select FB_MSM_LCDC_PANEL
 	default n
+
+config FB_MSM_LCDC_AUO_WVGA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default n
+
+config FB_MSM_LCDC_AUO_WXGA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default y if MACH_VERDI_LTE
 
 config FB_MSM_LCDC_CHIMEI_WXGA
 	bool
@@ -263,6 +324,16 @@ config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
 	select FB_MSM_MIPI_DSI_NOVATEK
 	default n
 
+config FB_MSM_MIPI_RENESAS_VIDEO_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_RENESAS
+	default n
+
+config FB_MSM_MIPI_RENESAS_CMD_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_RENESAS
+	default n
+
 config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_RENESAS
@@ -271,6 +342,21 @@ config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
 config FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_RENESAS
+	default n
+
+config FB_MSM_MIPI_ORISE_CMD_QHD_PT
+	bool
+	select FB_MSM_MIPI_DSI_ORISE
+	default n
+
+config FB_MSM_MIPI_HIMAX_VIDEO_720P_PT
+	bool
+	select FB_MSM_MIPI_DSI_HIMAX
+	default n
+
+config FB_MSM_MIPI_HIMAX_CMD_720P_PT
+	bool
+	select FB_MSM_MIPI_DSI_HIMAX
 	default n
 
 config FB_MSM_MIPI_CHIMEI_WXGA
@@ -289,7 +375,8 @@ config FB_MSM_MIPI_SIMULATOR_VIDEO
 
 config FB_MSM_OVERLAY_WRITEBACK
 	depends on FB_MSM_OVERLAY
-        bool "MDP overlay write back mode enable"
+	bool "MDP overlay write back mode enable"
+	default y
 	---help---
 	  Support for MDP4 OVERLAY write back mode
 
@@ -390,14 +477,17 @@ config FB_MSM_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT
 	select FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
 	select FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT
+	select FB_MSM_MIPI_RENESAS_CMD_WVGA_PT
 	select FB_MSM_MIPI_NOVATEK_VIDEO_QHD_PT
 	select FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
+	select FB_MSM_MIPI_HIMAX_VIDEO_720P_PT
+	select FB_MSM_MIPI_ORISE_CMD_QHD_PT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_CHIMEI_WXGA
 	select FB_MSM_MIPI_NOVATEK_CMD_HVGA_PT
 	select FB_MSM_MIPI_SAMSUNG_CMD_HVGA_PT
 	---help---
-	  Support for MIPI panel auto detect
+	  Support for MIPI panel auto detect + LCDC panel
 
 config FB_MSM_MDDI_PANEL_AUTO_DETECT
 	bool "MDDI Panel Auto Detect"
@@ -432,6 +522,10 @@ config FB_MSM_LCDC_MIPI_PANEL_AUTO_DETECT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	---help---
 	  Support for LCDC + MIPI panel auto detect
+
+config LCDC_TURN_ON_BL_AFTER_PANEL_ON
+	bool "Turn On BL again after turn on LCDC panel"
+	default n
 
 config FB_MSM_MDDI_PRISM_WVGA
 	bool "MDDI Prism WVGA Panel"
@@ -559,6 +653,11 @@ config FB_MSM_HDMI_3D
 	bool
 	default n
 
+config MSM_DSI_CLK_AUTO_CALCULATE
+	bool "Use AUTO calculate"
+	depends on FB_MSM_MIPI_DSI
+	default n
+
 config FB_MSM_HDMI_ADV7520_PANEL
 	depends on FB_MSM_MDP40 && FB_MSM_OVERLAY
         bool "LCDC HDMI ADV7520 720p Panel"
@@ -579,27 +678,25 @@ config FB_MSM_HDMI_ADV7520_PANEL_HDCP_SUPPORT
 
 
 config FB_MSM_HDMI_MSM_PANEL
+	bool "Support for HDMI in QCT platform"
 	depends on FB_MSM_MDP40
-	bool "MSM HDMI 1080p Panel"
 	select FB_MSM_DTV
-        select FB_MSM_EXT_INTERFACE_COMMON
+	select FB_MSM_EXT_INTERFACE_COMMON
 	select FB_MSM_HDMI_COMMON
 	select FB_MSM_HDMI_3D
 	default n
-	---help---
-	  Support for 480p/720p/1080i/1080p output through MSM HDMI
 
 config FB_MSM_HDMI_MSM_PANEL_DVI_SUPPORT
-	depends on FB_MSM_HDMI_MSM_PANEL
 	bool "Use DVI mode"
+	depends on FB_MSM_HDMI_MSM_PANEL
 	default n
 	---help---
 	  Support for DVI mode for MSM HDMI 1080p Panel
 
 config FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
-	depends on FB_MSM_HDMI_MSM_PANEL
 	bool "Use HDCP mode"
-	default y
+	depends on FB_MSM_HDMI_MSM_PANEL
+	default n
 	---help---
 	  Support for HDCP mode for MSM HDMI 1080p Panel
 	  Choose to enable HDCP

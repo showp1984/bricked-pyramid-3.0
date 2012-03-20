@@ -138,7 +138,7 @@ struct kgsl_version {
 #define KGSL_2D1_REG_MEMORY	"kgsl_2d1_reg_memory"
 #define KGSL_2D1_IRQ		"kgsl_2d1_irq"
 
-#if defined(CONFIG_MSM_KGSL_ADRENO200) || defined(CONFIG_MSM_KGSL_ADRENO205) || defined(CONFIG_MSM_KGSL_ADRENO220)
+#if defined(CONFIG_MSM_KGSL)
 struct kgsl_device_platform_data {
 	struct kgsl_pwrlevel pwrlevel[KGSL_MAX_PWRLEVELS];
 	int init_level;

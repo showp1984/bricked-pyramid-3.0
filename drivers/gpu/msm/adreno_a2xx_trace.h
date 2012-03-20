@@ -19,7 +19,7 @@
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE ../../drivers/gpu/msm_adreno220/adreno_a2xx_trace
+#define TRACE_INCLUDE_FILE ../../drivers/gpu/msm/adreno_a2xx_trace
 
 #include <linux/tracepoint.h>
 
