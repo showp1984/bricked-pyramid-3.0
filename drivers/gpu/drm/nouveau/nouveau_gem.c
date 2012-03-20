@@ -334,6 +334,25 @@ validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
 }
 
 static int
+validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
+{
+	struct nouveau_fence *fence = NULL;
+	int ret = 0;
+
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	if (nvbo->bo.sync_obj)
+		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+	spin_unlock(&nvbo->bo.bdev->fence_lock);
+
+	if (fence) {
+		ret = nouveau_fence_sync(fence, chan);
+		nouveau_fence_unref(&fence);
+	}
+
+	return ret;
+}
+
+static int
 validate_list(struct nouveau_channel *chan, struct list_head *list,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo, uint64_t user_pbbo_ptr)
 {
