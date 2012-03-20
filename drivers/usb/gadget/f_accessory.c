@@ -58,11 +58,11 @@ struct acc_dev {
 	struct usb_ep *ep_out;
 
 	/* set to 1 when we connect */
-	unsigned int online:1;
+	int online:1;
 	/* Set to 1 when we disconnect.
 	 * Not cleared until our file is closed.
 	 */
-	unsigned int disconnected:1;
+	int disconnected:1;
 
 	/* strings sent by the host */
 	char manufacturer[ACC_STRING_SIZE];

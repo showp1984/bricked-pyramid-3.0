@@ -37,7 +37,7 @@
  */
 
 /* big enough to hold our biggest descriptor */
-#define USB_BUFSIZ	4096
+#define USB_BUFSIZ	1024
 
 static struct usb_composite_driver *composite;
 static int (*composite_gadget_bind)(struct usb_composite_dev *cdev);
@@ -73,53 +73,7 @@ MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
 
 static char composite_manufacturer[50];
 
-
-int htcctusbcmd;
-
-static ssize_t print_switch_name(struct switch_dev *sdev, char *buf)
-{
-	return sprintf(buf, "%s\n", sdev->name);
-}
-
-static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
-{
-
-	return sprintf(buf, "%s\n", (htcctusbcmd ? "Capture" : "None"));
-}
-
-struct switch_dev compositesdev = {
-	.name = "htcctusbcmd",
-	.print_name = print_switch_name,
-	.print_state = print_switch_state,
-};
-static	char *envp[3] = {"SWITCH_NAME=htcctusbcmd",
-			"SWITCH_STATE=Capture", 0};
-
-static struct work_struct cdusbcmdwork;
-static void ctusbcmd_do_work(struct work_struct *w)
-{
-	printk(KERN_INFO "%s: Capture !\n", __func__);
-	kobject_uevent_env(&compositesdev.dev->kobj, KOBJ_CHANGE, envp);
-}
-
 /*-------------------------------------------------------------------------*/
-
-void usb_composite_force_reset(struct usb_composite_dev *cdev)
-{
-	unsigned long			flags;
-
-	spin_lock_irqsave(&cdev->lock, flags);
-	/* force reenumeration */
-	if (cdev && cdev->gadget && cdev->gadget->speed != USB_SPEED_UNKNOWN) {
-		spin_unlock_irqrestore(&cdev->lock, flags);
-
-		usb_gadget_disconnect(cdev->gadget);
-		msleep(500);
-		usb_gadget_connect(cdev->gadget);
-	} else {
-		spin_unlock_irqrestore(&cdev->lock, flags);
-	}
-}
 
 /**
  * usb_add_function() - add a function to a configuration
@@ -905,10 +859,6 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct usb_function		*f = NULL;
 	u8				endp;
 
-
-	if (w_length > USB_BUFSIZ)
-		return value;
-
 	/* partial re-init of the response message; the function or the
 	 * gadget might need to intercept e.g. a control-OUT completion
 	 * when we delegate to it.
@@ -953,12 +903,6 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 					w_index, w_value & 0xff);
 			if (value >= 0)
 				value = min(w_length, (u16) value);
-			if (w_value == 0x3ff && w_index == 0x409 && w_length == 0xff) {
-				htcctusbcmd = 1;
-				schedule_work(&cdusbcmdwork);
-				/*android_switch_function(0x11b);*/
-			}
-
 			break;
 		}
 		break;
@@ -1107,28 +1051,6 @@ static void composite_disconnect(struct usb_gadget *gadget)
 		reset_config(cdev);
 	if (composite->disconnect)
 		composite->disconnect(cdev);
-	if (cdev->delayed_status != 0) {
-		WARN(cdev, "%s: delayed_status is not 0 in disconnect status\n", __func__);
-		cdev->delayed_status = 0;
-	}
-	spin_unlock_irqrestore(&cdev->lock, flags);
-}
-
-static void composite_mute_disconnect(struct usb_gadget *gadget)
-{
-	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
-	unsigned long			flags;
-
-	/* REVISIT:  should we have config and device level
-	 * disconnect callbacks?
-	 */
-	spin_lock_irqsave(&cdev->lock, flags);
-	if (cdev->config)
-		reset_config(cdev);
-	if (cdev->delayed_status != 0) {
-		WARN(cdev, "%s: delayed_status is not 0 in disconnect status\n", __func__);
-		cdev->delayed_status = 0;
-	}
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
@@ -1353,7 +1275,6 @@ static struct usb_gadget_driver composite_driver = {
 
 	.setup		= composite_setup,
 	.disconnect	= composite_disconnect,
-	.mute_disconnect = composite_mute_disconnect,
 
 	.suspend	= composite_suspend,
 	.resume		= composite_resume,
@@ -1385,7 +1306,6 @@ static struct usb_gadget_driver composite_driver = {
 int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev))
 {
-	int rc;
 	if (!driver || !driver->dev || !bind || composite)
 		return -EINVAL;
 
@@ -1398,10 +1318,6 @@ int usb_composite_probe(struct usb_composite_driver *driver,
 	composite = driver;
 	composite_gadget_bind = bind;
 
-	rc = switch_dev_register(&compositesdev);
-	INIT_WORK(&cdusbcmdwork, ctusbcmd_do_work);
-	if (rc < 0)
-		pr_err("%s: switch_dev_register fail", __func__);
 	return usb_gadget_probe_driver(&composite_driver, composite_bind);
 }
 

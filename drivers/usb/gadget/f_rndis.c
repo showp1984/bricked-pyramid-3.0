@@ -98,8 +98,6 @@ struct f_rndis {
 	struct usb_endpoint_descriptor	*notify_desc;
 	struct usb_request		*notify_req;
 	atomic_t			notify_count;
-
-	atomic_t			online;
 };
 
 static inline struct f_rndis *func_to_rndis(struct usb_function *f)
@@ -391,23 +389,14 @@ static void rndis_response_complete(struct usb_ep *ep, struct usb_request *req)
 static void rndis_command_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct f_rndis			*rndis = req->context;
+	struct usb_composite_dev	*cdev = rndis->port.func.config->cdev;
 	int				status;
-
-	if (req->status < 0) {
-		pr_err("%s: staus error: %d\n", __func__, req->status);
-		return;
-	}
-
-	if (!atomic_read(&rndis->online)) {
-		pr_warning("%s: usb rndis is not online\n", __func__);
-		return;
-	}
 
 	/* received RNDIS command from USB_CDC_SEND_ENCAPSULATED_COMMAND */
 //	spin_lock(&dev->lock);
 	status = rndis_msg_parser(rndis->config, (u8 *) req->buf);
 	if (status < 0)
-		pr_err("[USB] RNDIS command error %d, %d/%d\n",
+		ERROR(cdev, "RNDIS command error %d, %d/%d\n",
 			status, req->actual, req->length);
 //	spin_unlock(&dev->lock);
 }
@@ -422,12 +411,6 @@ rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
-
-	if (!atomic_read(&rndis->online)) {
-		pr_warning("%s: usb rndis is not online\n", __func__);
-		return -ENOTCONN;
-	}
-
 
 	/* composite driver infrastructure handles everything except
 	 * CDC class messages; interface activation uses set_alt().
@@ -555,7 +538,6 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	} else
 		goto fail;
 
-	atomic_set(&rndis->online, 1);
 	return 0;
 fail:
 	return -EINVAL;
@@ -565,8 +547,6 @@ static void rndis_disable(struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
-
-	atomic_set(&rndis->online, 0);
 
 	if (!rndis->notify->driver_data)
 		return;
