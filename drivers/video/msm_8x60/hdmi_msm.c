@@ -3439,6 +3439,7 @@ static void hdmi_msm_hpd_off(void)
 	HDMI_OUTP_ND(0x030C, 0x00);
 	HDMI_OUTP_ND(0x0308, 0x7F); /*0b01111111*/
 	hdmi_msm_state->hpd_initialized = FALSE;
+	hdmi_msm_powerdown_phy();
 	hdmi_msm_state->pd->enable_5v(0);
 	hdmi_msm_state->pd->core_power(0, 1);
 	mutex_lock(&hdmi_msm_clk_mutex);
