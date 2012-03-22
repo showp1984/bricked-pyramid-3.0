@@ -819,7 +819,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 				if (ts->flag_htc_event == 0) {
 					input_mt_sync(ts->input_dev);
 					input_sync(ts->input_dev);
-					ts->sameFilter[2] = ts->sameFilter[0] = ts->sameFilter[1] = -1;
 				} else {
 					input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE, 0);
 					input_report_abs(ts->input_dev, ABS_MT_POSITION, 1 << 31);
@@ -828,11 +827,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 				for (loop_i = 0; loop_i < report; loop_i++) {
 					if (!(ts->grip_suppression & BIT(loop_i))) {
 						if (ts->flag_htc_event == 0) {
-#if 0
-							if (!(finger_data[loop_i][2] == ts->sameFilter[2] &&
-								finger_data[loop_i][0] == ts->sameFilter[0] &&
-								finger_data[loop_i][1] == ts->sameFilter[1])) {
-#endif
 								input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR,
 									finger_data[loop_i][2]);
 								input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR,
@@ -844,12 +838,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 								input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
 									finger_data[loop_i][1]);
 								input_mt_sync(ts->input_dev);
-#if 0
-								ts->sameFilter[2] = finger_data[loop_i][2];
-								ts->sameFilter[0] = finger_data[loop_i][0];
-								ts->sameFilter[1] = finger_data[loop_i][1];
-							}
-#endif
 						} else {
 							input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE,
 								finger_data[loop_i][2] << 16 | finger_data[loop_i][2]);
@@ -873,11 +861,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		for (loop_i = 0; loop_i < ts->finger_count; loop_i++) {
 			if (!(ts->grip_suppression & BIT(loop_i))) {
 				if (ts->flag_htc_event == 0) {
-#if 0
-					if (!(finger_data[loop_i][2] == ts->sameFilter[2] &&
-								finger_data[loop_i][0] == ts->sameFilter[0] &&
-								finger_data[loop_i][1] == ts->sameFilter[1])) {
-#endif
 						input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR,
 							finger_data[loop_i][2]);
 						input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR,
@@ -889,12 +872,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
 							finger_data[loop_i][1]);
 						input_mt_sync(ts->input_dev);
-#if 0
-						ts->sameFilter[2] = finger_data[loop_i][2];
-						ts->sameFilter[0] = finger_data[loop_i][0];
-						ts->sameFilter[1] = finger_data[loop_i][1];
-					}
-#endif
 				} else {
 					input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE,
 						finger_data[loop_i][2] << 16 | finger_data[loop_i][2]);
@@ -931,7 +908,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		cy8c_data_toggle(ts);
 		if (ts->flag_htc_event == 0) {
 			input_mt_sync(ts->input_dev);
-			ts->sameFilter[2] = ts->sameFilter[0] = ts->sameFilter[1] = -1;
 		} else {
 			input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE, 0);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION, 1 << 31);
