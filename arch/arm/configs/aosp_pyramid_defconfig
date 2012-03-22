@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.16 Kernel Configuration
+# Linux/arm 3.0.25 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1045,8 +1045,8 @@ CONFIG_CFG80211=y
 CONFIG_CFG80211_DEFAULT_PS=y
 # CONFIG_CFG80211_DEBUGFS is not set
 # CONFIG_CFG80211_INTERNAL_REGDB is not set
-# CONFIG_CFG80211_WEXT is not set
-# CONFIG_WIRELESS_EXT_SYSFS is not set
+CONFIG_CFG80211_WEXT=y
+CONFIG_WIRELESS_EXT_SYSFS=y
 CONFIG_LIB80211=y
 # CONFIG_LIB80211_DEBUG is not set
 # CONFIG_MAC80211 is not set
@@ -1219,9 +1219,10 @@ CONFIG_WLAN=y
 # CONFIG_USB_ZD1201 is not set
 # CONFIG_USB_NET_RNDIS_WLAN is not set
 # CONFIG_LIBRA_SDIOIF is not set
+CONFIG_BCM4329_PURE_ANDROID=y
 # CONFIG_ATH_COMMON is not set
-# CONFIG_BCM4329 is not set
-CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
+CONFIG_BCM4329=m
+CONFIG_BCM4329_FW_PATH="/vendor/firmware/fw_bcm4329.bin"
 CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
 # CONFIG_BCMDHD is not set
 # CONFIG_HOSTAP is not set
@@ -1230,8 +1231,6 @@ CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
 # CONFIG_WL12XX_PLATFORM_DATA is not set
 # CONFIG_MWIFIEX is not set
 # CONFIG_QUALCOMM_WLAN is not set
-CONFIG_BCM4329_248=m
-# CONFIG_BCM4330B2 is not set
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
@@ -1270,7 +1269,7 @@ CONFIG_MSM_RMNET=y
 # CONFIG_MSM_RMNET_DEBUG is not set
 # CONFIG_NETPOLL is not set
 # CONFIG_NET_POLL_CONTROLLER is not set
-CONFIG_HTC_NETWORK_MODIFY=y
+# CONFIG_HTC_NETWORK_MODIFY is not set
 CONFIG_KINETO_GAN=m
 # CONFIG_ISDN is not set
 # CONFIG_PHONE is not set

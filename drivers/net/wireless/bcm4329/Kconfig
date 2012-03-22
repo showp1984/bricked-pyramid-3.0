@@ -15,7 +15,7 @@ config BCM4329
 config BCM4329_FW_PATH
 	depends on BCM4329
 	string "Firmware path"
-	default "/system/etc/firmware/fw_bcm4329.bin"
+	default "/vendor/firmware/fw_bcm4329.bin"
 	---help---
 	  Path to the firmware file.
 

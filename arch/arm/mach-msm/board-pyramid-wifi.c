@@ -9,7 +9,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <linux/skbuff.h>
-#include <linux/wifi_tiwlan.h>
+#include <linux/wlan_plat.h>
 
 #include "board-pyramid.h"
 
@@ -29,7 +29,7 @@ int pyramid_wifi_get_mac_addr(unsigned char *buf);
 
 #define WLAN_SKB_BUF_NUM	16
 
-//#define HW_OOB 1
+#define HW_OOB 1
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -80,11 +80,7 @@ static struct resource pyramid_wifi_resources[] = {
 		.name		= "bcm4329_wlan_irq",
 		.start		= MSM_GPIO_TO_INT(PYRAMID_GPIO_WIFI_IRQ),
 		.end		= MSM_GPIO_TO_INT(PYRAMID_GPIO_WIFI_IRQ),
-#ifdef HW_OOB
 		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
-#else
-		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-#endif
 	},
 };
 
@@ -281,4 +277,3 @@ int __init pyramid_wifi_init(void)
 	ret = platform_device_register(&pyramid_wifi_device);
 	return ret;
 }
-

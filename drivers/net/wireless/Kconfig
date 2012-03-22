@@ -313,7 +313,5 @@ source "drivers/net/wireless/wl12xx/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/mwifiex/Kconfig"
 source "drivers/net/wireless/qualcomm_wlan/Kconfig"
-source "drivers/net/wireless/bcm4329_248/Kconfig"
-source "drivers/net/wireless/bcm4330b2/Kconfig"
 
 endif # WLAN
