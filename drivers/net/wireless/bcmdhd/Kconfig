@@ -1,8 +1,6 @@
 config BCMDHD
 	tristate "Broadcom 4329/30 wireless cards support"
 	depends on MMC
-        select WIRELESS_EXT
-        select WEXT_PRIV
 	---help---
 	  This module adds support for wireless adapters based on
 	  Broadcom 4329/30 chipset.
@@ -25,3 +23,25 @@ config BCMDHD_NVRAM_PATH
 	default "/proc/calibration"
 	---help---
 	  Path to the calibration file.
+
+config BCMDHD_WEXT
+	bool "Enable WEXT support"
+	depends on BCMDHD && CFG80211 = n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  Enables WEXT support
+
+config DHD_USE_STATIC_BUF
+	bool "Enable memory preallocation"
+	depends on BCMDHD
+	default n
+	---help---
+	  Use memory preallocated in platform
+
+config DHD_USE_SCHED_SCAN
+	bool "Use CFG80211 sched scan"
+	depends on BCMDHD && CFG80211
+	default n
+	---help---
+	  Use CFG80211 sched scan
