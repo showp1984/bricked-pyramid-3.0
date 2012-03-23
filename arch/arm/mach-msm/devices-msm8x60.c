@@ -987,7 +987,7 @@ static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 			.bus_freq = 1,
 		},
 		{
-			.gpu_freq = 228571000,
+			.gpu_freq = 200000000,
 			.bus_freq = 0,
 		},
 	},
@@ -1034,7 +1034,7 @@ static struct kgsl_device_platform_data kgsl_2d1_pdata = {
 			.bus_freq = 1,
 		},
 		{
-			.gpu_freq = 228571000,
+			.gpu_freq = 200000000,
 			.bus_freq = 0,
 		},
 	},
