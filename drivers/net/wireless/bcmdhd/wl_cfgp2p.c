@@ -595,7 +595,8 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 	    (num_chans & WL_SCAN_PARAMS_COUNT_MASK));
 
 	for (i = 0; i < num_chans; i++) {
-		eparams->params.channel_list[i] = htodchanspec(channels[i]);
+		if (i <= (sizeof(eparams->params.channel_list) / sizeof(int)))
+			eparams->params.channel_list[i] = htodchanspec(channels[i]);
 	}
 	eparams->version = htod32(ESCAN_REQ_VERSION);
 	eparams->action =  htod16(action);
