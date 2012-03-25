@@ -435,8 +435,10 @@ struct venc_ioctl_msg{
 
 #define VEN_IOCTL_GET_NUMBER_INSTANCES \
 	_IOR(VEN_IOCTLBASE_ENC, 46, struct venc_ioctl_msg)
+
 #define VEN_IOCTL_SET_METABUFFER_MODE \
 	_IOW(VEN_IOCTLBASE_ENC, 47, struct venc_ioctl_msg)
+
 struct venc_switch{
 	unsigned char	status;
 };
@@ -580,12 +582,10 @@ struct venc_msg{
 };
 
 struct venc_recon_addr{
+	unsigned char *pbuffer;
 	unsigned long buffer_size;
 	unsigned long pmem_fd;
 	unsigned long offset;
-/* HTC START */
-	unsigned char *pbuffer;
-/* HTC END */
 };
 
 struct venc_recon_buff_size{
