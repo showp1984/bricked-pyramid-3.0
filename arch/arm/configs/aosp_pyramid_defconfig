@@ -1029,6 +1029,7 @@ CONFIG_BT_HCIUART_H4=y
 # CONFIG_BT_HCIVHCI is not set
 # CONFIG_BT_MRVL is not set
 # CONFIG_MSM_BT_POWER is not set
+CONFIG_BT_HID_BRCM=y
 # CONFIG_AF_RXRPC is not set
 CONFIG_FIB_RULES=y
 CONFIG_WIRELESS=y
@@ -2224,6 +2225,7 @@ CONFIG_USB_G_ANDROID=y
 # CONFIG_USB_G_MULTI is not set
 # CONFIG_USB_G_HID is not set
 # CONFIG_USB_G_DBGP is not set
+CONFIG_USB_HTC_SWITCH_STUB=y
 
 #
 # OTG and related infrastructure
