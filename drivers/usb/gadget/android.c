@@ -955,6 +955,10 @@ static struct device_attribute *android_usb_attributes[] = {
 	NULL
 };
 
+#ifdef CONFIG_USB_HTC_SWITCH_STUB
+#include "htc_attr.c"
+#endif
+
 /*-------------------------------------------------------------------------*/
 /* Composite driver */
 
@@ -1165,6 +1169,10 @@ static int __init init(void)
 	/* Override composite driver functions */
 	composite_driver.setup = android_setup;
 	composite_driver.disconnect = android_disconnect;
+
+#ifdef CONFIG_USB_HTC_SWITCH_STUB
+	platform_driver_probe(&android_platform_driver, android_probe);
+#endif
 
 	return usb_composite_probe(&android_usb_driver, android_bind);
 }
