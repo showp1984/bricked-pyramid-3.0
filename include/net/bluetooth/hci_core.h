@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2011, Code Aurora Forum. All rights reserved.
+   Copyright (c) 2000-2001, 2010-2012, Code Aurora Forum. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -240,8 +240,11 @@ struct hci_dev {
 	rwlock_t		adv_entries_lock;
 	struct timer_list	adv_timer;
 
-	struct timer_list	disc_timer;
-	struct timer_list	disc_le_timer;
+	struct timer_list	disco_timer;
+	struct timer_list	disco_le_timer;
+	__u8			disco_state;
+	int			disco_int_phase;
+	int			disco_int_count;
 
 	struct hci_dev_stats	stat;
 
@@ -567,7 +570,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 struct hci_conn *hci_le_conn_add(struct hci_dev *hdev, bdaddr_t *dst,
 							__u8 addr_type);
 int hci_conn_del(struct hci_conn *conn);
-void hci_conn_hash_flush(struct hci_dev *hdev);
+void hci_conn_hash_flush(struct hci_dev *hdev, u8 is_process);
 void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_chan *hci_chan_add(struct hci_dev *hdev);
@@ -619,7 +622,7 @@ static inline void hci_conn_put(struct hci_conn *conn)
 			if (conn->state == BT_CONNECTED) {
 				timeo = msecs_to_jiffies(conn->disc_timeout);
 				if (!conn->out)
-					timeo *= 20;
+					timeo *= 4;
 			} else
 				timeo = msecs_to_jiffies(10);
 		} else
@@ -748,7 +751,8 @@ struct hci_proto {
 	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type);
 	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
 	int (*disconn_ind)	(struct hci_conn *conn);
-	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason);
+	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason,
+							__u8 is_process);
 	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
 	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
 	int (*security_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
@@ -805,17 +809,18 @@ static inline int hci_proto_disconn_ind(struct hci_conn *conn)
 	return reason;
 }
 
-static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
+static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason,
+							__u8 is_process)
 {
 	register struct hci_proto *hp;
 
 	hp = hci_proto[HCI_PROTO_L2CAP];
 	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+		hp->disconn_cfm(conn, reason, is_process);
 
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+		hp->disconn_cfm(conn, reason, is_process);
 
 	if (conn->disconn_cfm_cb)
 		conn->disconn_cfm_cb(conn, reason);
@@ -928,7 +933,7 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encr
 	if (conn->sec_level == BT_SECURITY_SDP)
 		conn->sec_level = BT_SECURITY_LOW;
 
-	if (conn->pending_sec_level > conn->sec_level)
+	if (!status && encrypt && conn->pending_sec_level > conn->sec_level)
 		conn->sec_level = conn->pending_sec_level;
 
 	hci_proto_encrypt_cfm(conn, status, encrypt);
@@ -1037,10 +1042,16 @@ int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 type, u8 le,
 int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 status, u8 *name);
 void mgmt_inquiry_started(u16 index);
 void mgmt_inquiry_complete_evt(u16 index, u8 status);
+void mgmt_disco_timeout(unsigned long data);
+void mgmt_disco_le_timeout(unsigned long data);
 int mgmt_encrypt_change(u16 index, bdaddr_t *bdaddr, u8 status);
 
 /* LE SMP Management interface */
 int le_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, void *cp);
+int mgmt_remote_class(u16 index, bdaddr_t *bdaddr, u8 dev_class[3]);
+int mgmt_remote_version(u16 index, bdaddr_t *bdaddr, u8 ver, u16 mnf,
+							u16 sub_ver);
+int mgmt_remote_features(u16 index, bdaddr_t *bdaddr, u8 features[8]);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

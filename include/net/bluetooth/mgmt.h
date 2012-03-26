@@ -161,7 +161,6 @@ struct mgmt_cp_set_io_capability {
 struct mgmt_cp_pair_device {
 	bdaddr_t bdaddr;
 	__u8 io_cap;
-	__u8 ssp_cap;
 } __packed;
 struct mgmt_rp_pair_device {
 	bdaddr_t bdaddr;
@@ -342,3 +341,22 @@ struct mgmt_ev_encrypt_change {
 } __packed;
 
 
+#define MGMT_EV_REMOTE_CLASS		0x0017
+struct mgmt_ev_remote_class {
+	bdaddr_t bdaddr;
+	__u8 dev_class[3];
+} __packed;
+
+#define MGMT_EV_REMOTE_VERSION		0x0018
+struct mgmt_ev_remote_version {
+	bdaddr_t bdaddr;
+	__u8	lmp_ver;
+	__u16	manufacturer;
+	__u16	lmp_subver;
+} __packed;
+
+#define MGMT_EV_REMOTE_FEATURES		0x0019
+struct mgmt_ev_remote_features {
+	bdaddr_t bdaddr;
+	uint8_t features[8];
+} __packed;

@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2011 Code Aurora Forum.  All rights reserved.
+   Copyright (c) 2000-2001, 2010-2012 Code Aurora Forum.  All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -65,7 +65,7 @@ static void hci_le_connect(struct hci_conn *conn)
 	cp.peer_addr_type = conn->dst_type;
 	cp.conn_interval_min = cpu_to_le16(0x0008);
 	cp.conn_interval_max = cpu_to_le16(0x0100);
-	cp.supervision_timeout = cpu_to_le16(0x0064);
+	cp.supervision_timeout = cpu_to_le16(1000);
 	cp.min_ce_len = cpu_to_le16(0x0001);
 	cp.max_ce_len = cpu_to_le16(0x0001);
 
@@ -366,6 +366,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 	switch (type) {
 	case ACL_LINK:
 		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
+		conn->link_policy = hdev->link_policy;
 		break;
 	case SCO_LINK:
 		if (!pkt_type)
@@ -429,9 +430,10 @@ int hci_conn_del(struct hci_conn *conn)
 
 	BT_DBG("%s conn %p handle %d", hdev->name, conn, conn->handle);
 
+	/* Make sure no timers are running */
 	del_timer(&conn->idle_timer);
-
 	del_timer(&conn->disc_timer);
+	del_timer(&conn->smp_timer);
 
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
@@ -458,6 +460,8 @@ int hci_conn_del(struct hci_conn *conn)
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+
+	tasklet_schedule(&hdev->tx_task);
 
 	tasklet_enable(&hdev->tx_task);
 
@@ -508,18 +512,24 @@ int hci_chan_del(struct hci_chan *chan)
 int hci_chan_put(struct hci_chan *chan)
 {
 	struct hci_cp_disconn_logical_link cp;
+	struct hci_conn *hcon;
+	u16 ll_handle;
 
 	BT_DBG("chan %p refcnt %d", chan, atomic_read(&chan->refcnt));
 	if (!atomic_dec_and_test(&chan->refcnt))
 		return 0;
 
-	BT_DBG("chan->conn->state %d", chan->conn->state);
-	if (chan->conn->state == BT_CONNECTED) {
-		cp.log_handle = cpu_to_le16(chan->ll_handle);
-		hci_send_cmd(chan->conn->hdev, HCI_OP_DISCONN_LOGICAL_LINK,
+	hcon = chan->conn;
+	ll_handle = chan->ll_handle;
+
+	hci_chan_del(chan);
+
+	BT_DBG("chan->conn->state %d", hcon->state);
+	if (hcon->state == BT_CONNECTED) {
+		cp.log_handle = cpu_to_le16(ll_handle);
+		hci_send_cmd(hcon->hdev, HCI_OP_DISCONN_LOGICAL_LINK,
 				sizeof(cp), &cp);
-	} else
-		hci_chan_del(chan);
+	}
 
 	return 1;
 }
@@ -718,7 +728,7 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	BT_DBG("conn %p", conn);
 
-	hci_proto_disconn_cfm(conn, reason);
+	hci_proto_disconn_cfm(conn, reason, 0);
 }
 EXPORT_SYMBOL(hci_disconnect);
 
@@ -777,6 +787,10 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
+
+		/* encrypt must be pending if auth is also pending */
+		set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
+
 		cp.handle = cpu_to_le16(conn->handle);
 		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
 							sizeof(cp), &cp);
@@ -807,7 +821,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		return 0;
 	} else if (conn->link_mode & HCI_LM_ENCRYPT) {
 		return hci_conn_auth(conn, sec_level, auth_type);
-	} else if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
+	} else if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
 		return 0;
 	}
 
@@ -899,7 +913,9 @@ void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
 		return;
 
-	if (conn->mode != HCI_CM_ACTIVE || !(conn->link_policy & HCI_LP_SNIFF))
+	if (conn->mode != HCI_CM_ACTIVE ||
+		!(conn->link_policy & HCI_LP_SNIFF) ||
+		(hci_find_link_key(hdev, &conn->dst) == NULL))
 		return;
 
 	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
@@ -1015,7 +1031,7 @@ void hci_chan_modify(struct hci_chan *chan,
 EXPORT_SYMBOL(hci_chan_modify);
 
 /* Drop all connection on the device */
-void hci_conn_hash_flush(struct hci_dev *hdev)
+void hci_conn_hash_flush(struct hci_dev *hdev, u8 is_process)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct list_head *p;
@@ -1031,7 +1047,7 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 
 		c->state = BT_CLOSED;
 
-		hci_proto_disconn_cfm(c, 0x16);
+		hci_proto_disconn_cfm(c, 0x16, is_process);
 		hci_conn_del(c);
 	}
 }
