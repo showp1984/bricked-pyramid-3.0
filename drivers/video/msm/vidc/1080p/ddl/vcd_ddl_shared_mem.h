@@ -47,7 +47,6 @@
 #define VIDC_SM_LEVEL_VC1_ADV_3  (3)
 #define VIDC_SM_LEVEL_VC1_ADV_4  (4)
 
-#define VIDC_SM_RECOVERY_POINT_SEI  (1)
 enum VIDC_SM_frame_skip {
 	VIDC_SM_FRAME_SKIP_DISABLE      = 0,
 	VIDC_SM_FRAME_SKIP_ENABLE_LEVEL = 1,
@@ -64,13 +63,6 @@ struct ddl_profile_info_type {
 	u32 pic_level;
 	u32 chroma_format_idc;
 	u32 pic_profile;
-};
-
-enum vidc_sm_mpeg4_profileinfo {
-	VIDC_SM_PROFILE_INFO_DISABLE  = 0,
-	VIDC_SM_PROFILE_INFO_SP       = 1,
-	VIDC_SM_PROFILE_INFO_ASP      = 2,
-	VIDC_SM_PROFILE_INFO_MAX      = 0x7fffffff
 };
 
 void vidc_sm_get_extended_decode_status(struct ddl_buf_addr *shared_mem,
@@ -100,7 +92,7 @@ void vidc_sm_get_dec_order_crop_info(
 void vidc_sm_set_extended_encoder_control(
 	struct ddl_buf_addr *shared_mem, u32 hec_enable,
 	enum VIDC_SM_frame_skip  frame_skip_mode, u32 seq_hdr_in_band,
-	u32 vbv_buffer_size, u32 cpcfc_enable, u32 closed_gop_enable);
+	u32 vbv_buffer_size);
 void vidc_sm_set_encoder_param_change(struct ddl_buf_addr *shared_mem,
 	u32 bit_rate_chg, u32 frame_rate_chg, u32 i_period_chg);
 void vidc_sm_set_encoder_vop_time(struct ddl_buf_addr *shared_mem,
@@ -162,10 +154,4 @@ void vidc_sm_set_concealment_color(struct ddl_buf_addr *shared_mem,
 	u32 conceal_ycolor, u32 conceal_ccolor);
 void vidc_sm_set_chroma_addr_change(struct ddl_buf_addr *shared_mem,
 	u32 addr_change);
-void vidc_sm_set_mpeg4_profile_override(struct ddl_buf_addr *shared_mem,
-	enum vidc_sm_mpeg4_profileinfo profile_info);
-void vidc_sm_set_decoder_sei_enable(struct ddl_buf_addr *shared_mem,
-	u32 sei_enable);
-void vidc_sm_get_decoder_sei_enable(struct ddl_buf_addr *shared_mem,
-	u32 *sei_enable);
 #endif

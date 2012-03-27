@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,13 +36,13 @@
 #define VID_ENC_NAME	"msm_vidc_enc"
 
 #if DEBUG
-#define DBG(x...) printk(KERN_DEBUG "[VID] " x)
+#define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
 #endif
 
-#define INFO(x...) printk(KERN_INFO "[VID] " x)
-#define ERR(x...) printk(KERN_ERR "[VID] " x)
+#define INFO(x...) printk(KERN_INFO x)
+#define ERR(x...) printk(KERN_ERR x)
 
 static struct vid_enc_dev *vid_enc_device_p;
 static dev_t vid_enc_dev_num;
@@ -288,34 +288,34 @@ static void vid_enc_lean_event(struct video_client_ctx *client_ctx,
 
 	switch (event) {
 	case VCD_EVT_RESP_FLUSH_INPUT_DONE:
-		INFO(" msm_vidc_enc: Sending VCD_EVT_RESP_FLUSH_INPUT_DONE"
+		INFO("\n msm_vidc_enc: Sending VCD_EVT_RESP_FLUSH_INPUT_DONE"
 			 " to client");
 		venc_msg->venc_msg_info.msgcode =
 			VEN_MSG_FLUSH_INPUT_DONE;
 		break;
 	case VCD_EVT_RESP_FLUSH_OUTPUT_DONE:
-		INFO(" msm_vidc_enc: Sending VCD_EVT_RESP_FLUSH_OUTPUT_DONE"
+		INFO("\n msm_vidc_enc: Sending VCD_EVT_RESP_FLUSH_OUTPUT_DONE"
 			 " to client");
 		venc_msg->venc_msg_info.msgcode =
 			VEN_MSG_FLUSH_OUPUT_DONE;
 		break;
 
 	case VCD_EVT_RESP_START:
-		INFO(" msm_vidc_enc: Sending VCD_EVT_RESP_START"
+		INFO("\n msm_vidc_enc: Sending VCD_EVT_RESP_START"
 			 " to client");
 		venc_msg->venc_msg_info.msgcode =
 			VEN_MSG_START;
 		break;
 
 	case VCD_EVT_RESP_STOP:
-		INFO(" msm_vidc_enc: Sending VCD_EVT_RESP_STOP"
+		INFO("\n msm_vidc_enc: Sending VCD_EVT_RESP_STOP"
 			 " to client");
 		venc_msg->venc_msg_info.msgcode =
 			VEN_MSG_STOP;
 		break;
 
 	case VCD_EVT_RESP_PAUSE:
-		INFO(" msm_vidc_enc: Sending VCD_EVT_RESP_PAUSE"
+		INFO("\n msm_vidc_enc: Sending VCD_EVT_RESP_PAUSE"
 			 " to client");
 		venc_msg->venc_msg_info.msgcode =
 			VEN_MSG_PAUSE;
@@ -411,24 +411,21 @@ static u32 vid_enc_msg_pending(struct video_client_ctx *client_ctx)
 	return !islist_empty;
 }
 
-static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
+static u32 vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		struct venc_msg *venc_msg_info)
 {
 	int rc;
 	struct vid_enc_msg *vid_enc_msg = NULL;
 
 	if (!client_ctx)
-		return -EIO;
+		return false;
 
 	rc = wait_event_interruptible(client_ctx->msg_wait,
 		vid_enc_msg_pending(client_ctx));
 
-	if (rc < 0) {
-		DBG("rc = %d,stop_msg= %u\n", rc, client_ctx->stop_msg);
-		return rc;
-	} else if (client_ctx->stop_msg) {
-		DBG("stopped stop_msg = %u\n", client_ctx->stop_msg);
-		return -EIO;
+	if (rc < 0 || client_ctx->stop_msg) {
+		DBG("rc = %d, stop_msg = %u\n", rc, client_ctx->stop_msg);
+		return false;
 	}
 
 	mutex_lock(&client_ctx->msg_queue_lock);
@@ -443,7 +440,7 @@ static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		kfree(vid_enc_msg);
 	}
 	mutex_unlock(&client_ctx->msg_queue_lock);
-	return 0;
+	return true;
 }
 
 static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
@@ -452,7 +449,7 @@ static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
 	u32 vcd_status;
 	int rc;
 
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 	if (!client_ctx || (!client_ctx->vcd_handle)) {
 		ERR("\n %s(): Invalid client_ctx", __func__);
 		return false;
@@ -493,6 +490,7 @@ static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
 		mutex_unlock(&vid_enc_device_p->lock);
 		return false;
 	}
+
 	memset((void *)client_ctx, 0,
 		sizeof(struct video_client_ctx));
 
@@ -510,7 +508,7 @@ static int vid_enc_open(struct inode *inode, struct file *file)
 	u32 vcd_status = VCD_ERR_FAIL;
 	u8 client_count = 0;
 
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 
 	mutex_lock(&vid_enc_device_p->lock);
 
@@ -531,13 +529,11 @@ static int vid_enc_open(struct inode *inode, struct file *file)
 
 	client_index = vid_enc_get_empty_client_index();
 
-	/* HTC_START (klockwork issue)*/
-	if (client_index < 0) {
+	if (client_index == -1) {
 		ERR("%s() : No free clients client_index == -1\n",
 			__func__);
 		return -ENODEV;
 	}
-	/* HTC_END */
 
 	client_ctx =
 		&vid_enc_device_p->venc_clients[client_index];
@@ -547,13 +543,6 @@ static int vid_enc_open(struct inode *inode, struct file *file)
 	mutex_init(&client_ctx->msg_queue_lock);
 	INIT_LIST_HEAD(&client_ctx->msg_queue);
 	init_waitqueue_head(&client_ctx->msg_wait);
-	if (vcd_get_ion_status()) {
-		client_ctx->user_ion_client = vcd_get_ion_client();
-		if (!client_ctx->user_ion_client) {
-			ERR("vcd_open ion get client failed");
-			return -EFAULT;
-		}
-	}
 	vcd_status = vcd_open(vid_enc_device_p->device_handle, false,
 		vid_enc_vcd_cb, client_ctx);
 	client_ctx->stop_msg = 0;
@@ -579,13 +568,13 @@ static int vid_enc_open(struct inode *inode, struct file *file)
 static int vid_enc_release(struct inode *inode, struct file *file)
 {
 	struct video_client_ctx *client_ctx = file->private_data;
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 	vid_enc_close_client(client_ctx);
 	vidc_release_firmware();
 #ifndef USE_RES_TRACKER
 	vidc_disable_clk();
 #endif
-	INFO(" msm_vidc_enc: Return from %s()", __func__);
+	INFO("\n msm_vidc_enc: Return from %s()", __func__);
 	return 0;
 }
 
@@ -619,7 +608,7 @@ static int vid_enc_vcd_init(void)
 	struct vcd_init_config vcd_init_config;
 	u32 i;
 
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 	vid_enc_device_p->num_clients = 0;
 
 	for (i = 0; i < VIDC_MAX_NUM_CLIENTS; i++) {
@@ -661,7 +650,7 @@ static int __init vid_enc_init(void)
 	int rc = 0;
 	struct device *class_devp;
 
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 	vid_enc_device_p = kzalloc(sizeof(struct vid_enc_dev),
 					 GFP_KERNEL);
 	if (!vid_enc_device_p) {
@@ -723,13 +712,13 @@ error_vid_enc_alloc_chrdev_region:
 
 static void __exit vid_enc_exit(void)
 {
-	INFO(" msm_vidc_enc: Inside %s()", __func__);
+	INFO("\n msm_vidc_enc: Inside %s()", __func__);
 	cdev_del(&(vid_enc_device_p->cdev));
 	device_destroy(vid_enc_class, vid_enc_dev_num);
 	class_destroy(vid_enc_class);
 	unregister_chrdev_region(vid_enc_dev_num, 1);
 	kfree(vid_enc_device_p);
-	INFO(" msm_vidc_enc: Return from %s()", __func__);
+	INFO("\n msm_vidc_enc: Return from %s()", __func__);
 }
 static long vid_enc_ioctl(struct file *file,
 		unsigned cmd, unsigned long u_arg)
@@ -738,7 +727,6 @@ static long vid_enc_ioctl(struct file *file,
 	struct venc_ioctl_msg venc_msg;
 	void __user *arg = (void __user *)u_arg;
 	u32 result = true;
-	int result_read = -1;
 
 	DBG("%s\n", __func__);
 
@@ -755,9 +743,9 @@ static long vid_enc_ioctl(struct file *file,
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		DBG("VEN_IOCTL_CMD_READ_NEXT_MSG\n");
-		result_read = vid_enc_get_next_msg(client_ctx, &cb_msg);
-		if (result_read < 0)
-			return result_read;
+		result = vid_enc_get_next_msg(client_ctx, &cb_msg);
+		if (!result)
+			return -EIO;
 		if (copy_to_user(venc_msg.out, &cb_msg, sizeof(cb_msg)))
 			return -EFAULT;
 		break;
@@ -821,20 +809,16 @@ static long vid_enc_ioctl(struct file *file,
 	{
 		enum venc_buffer_dir buffer_dir;
 		struct venc_bufferpayload buffer_info;
-		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg))) {
-/* HTC_START*/
-			pr_info("[VID] VENC_FREE_BUF ERR 1");
+		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
-		}
+
 		DBG("VEN_IOCTL_CMD_FREE_INPUT_BUFFER/"
 			"VEN_IOCTL_CMD_FREE_OUTPUT_BUFFER\n");
 
 		if (copy_from_user(&buffer_info, venc_msg.in,
-			sizeof(buffer_info))) {
-/* HTC_START */
-			pr_info("[VID] VENC_FREE_BUF ERR 2");
+			sizeof(buffer_info)))
 			return -EFAULT;
-		}
+
 		buffer_dir = VEN_BUFFER_TYPE_INPUT;
 		if (cmd == VEN_IOCTL_CMD_FREE_OUTPUT_BUFFER)
 			buffer_dir = VEN_BUFFER_TYPE_OUTPUT;
@@ -844,8 +828,6 @@ static long vid_enc_ioctl(struct file *file,
 		if (!result) {
 			DBG("\n VEN_IOCTL_CMD_FREE_OUTPUT_BUFFER"
 				"/VEN_IOCTL_CMD_FREE_OUTPUT_BUFFER failed");
-/* HTC_START */
-			pr_info("[VID] VENC_FREE_BUF ERR 3");
 			return -EIO;
 		}
 		break;
@@ -910,7 +892,7 @@ static long vid_enc_ioctl(struct file *file,
 		if (copy_from_user(&bufferflush, venc_msg.in,
 			sizeof(bufferflush)))
 			return -EFAULT;
-		INFO(" %s(): Calling vid_enc_flush with mode = %lu",
+		INFO("\n %s(): Calling vid_enc_flush with mode = %lu",
 			 __func__, bufferflush.flush_mode);
 		result = vid_enc_flush(client_ctx, &bufferflush);
 
@@ -922,7 +904,7 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_CMD_START:
 	{
-		INFO(" %s(): Executing VEN_IOCTL_CMD_START", __func__);
+		INFO("\n %s(): Executing VEN_IOCTL_CMD_START", __func__);
 		result = vid_enc_start_stop(client_ctx, true);
 		if (!result) {
 			ERR("setting VEN_IOCTL_CMD_START failed\n");
@@ -932,7 +914,7 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_CMD_STOP:
 	{
-		INFO(" %s(): Executing VEN_IOCTL_CMD_STOP", __func__);
+		INFO("\n %s(): Executing VEN_IOCTL_CMD_STOP", __func__);
 		result = vid_enc_start_stop(client_ctx, false);
 		if (!result) {
 			ERR("setting VEN_IOCTL_CMD_STOP failed\n");
@@ -943,7 +925,7 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_CMD_PAUSE:
 	{
-		INFO(" %s(): Executing VEN_IOCTL_CMD_PAUSE", __func__);
+		INFO("\n %s(): Executing VEN_IOCTL_CMD_PAUSE", __func__);
 		result = vid_enc_pause_resume(client_ctx, true);
 		if (!result) {
 			ERR("setting VEN_IOCTL_CMD_PAUSE failed\n");
@@ -953,7 +935,7 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_CMD_RESUME:
 	{
-		INFO(" %s(): Executing VEN_IOCTL_CMD_RESUME", __func__);
+		INFO("\n %s(): Executing VEN_IOCTL_CMD_RESUME", __func__);
 		result = vid_enc_pause_resume(client_ctx, false);
 		if (!result) {
 			ERR("setting VEN_IOCTL_CMD_RESUME failed\n");
@@ -980,15 +962,8 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_FREE_RECON_BUFFER:
 	{
-		struct venc_recon_addr venc_recon;
 		DBG("VEN_IOCTL_FREE_RECON_BUFFER\n");
-		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
-			return -EFAULT;
-		if (copy_from_user(&venc_recon, venc_msg.in,
-				sizeof(venc_recon)))
-				return -EFAULT;
-		result = vid_enc_free_recon_buffers(client_ctx,
-				&venc_recon);
+		result = vid_enc_free_recon_buffers(client_ctx);
 		if (!result) {
 			ERR("VEN_IOCTL_FREE_RECON_BUFFER failed\n");
 			return -EIO;
@@ -1308,9 +1283,6 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_SEQUENCE_HDR:
 	{
 		struct venc_seqheader seq_header, seq_header_user;
-		/* HTC_START (klockwork issue)*/
-		memset(&seq_header, 0, sizeof(struct venc_seqheader));
-		/* HTC_END */
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 
@@ -1549,29 +1521,6 @@ static long vid_enc_ioctl(struct file *file,
 		if (copy_to_user(venc_msg.out,
 			&vid_enc_device_p->num_clients, sizeof(u32)))
 			return -EFAULT;
-		break;
-	}
-	case VEN_IOCTL_SET_METABUFFER_MODE:
-	{
-		u32 metabuffer_mode, vcd_status;
-		struct vcd_property_hdr vcd_property_hdr;
-		struct vcd_property_live live_mode;
-
-		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
-			return -EFAULT;
-		if (copy_from_user(&metabuffer_mode, venc_msg.in,
-			sizeof(metabuffer_mode)))
-			return -EFAULT;
-		vcd_property_hdr.prop_id = VCD_I_META_BUFFER_MODE;
-		vcd_property_hdr.sz =
-			sizeof(struct vcd_property_live);
-		live_mode.live = metabuffer_mode;
-		vcd_status = vcd_set_property(client_ctx->vcd_handle,
-					&vcd_property_hdr, &live_mode);
-		if (vcd_status) {
-			pr_err(" Setting metabuffer mode failed");
-			return -EIO;
-		}
 		break;
 	}
 	case VEN_IOCTL_SET_AC_PREDICTION:

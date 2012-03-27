@@ -237,6 +237,7 @@ u32 ddl_decoder_dpb_init(struct ddl_client_context *ddl)
 	struct ddl_frame_data_tag *frame;
 	u32 luma[DDL_MAX_BUFFER_COUNT], chroma[DDL_MAX_BUFFER_COUNT];
 	u32 mv[DDL_MAX_BUFFER_COUNT], luma_size, i, dpb;
+
 	frame = &decoder->dp_buf.dec_pic_buffers[0];
 	luma_size = ddl_get_yuv_buf_size(decoder->frame_size.width,
 			decoder->frame_size.height, DDL_YUV_BUF_TYPE_TILE);
@@ -247,16 +248,9 @@ u32 ddl_decoder_dpb_init(struct ddl_client_context *ddl)
 		dpb = DDL_MAX_BUFFER_COUNT;
 	for (i = 0; i < dpb; i++) {
 		if (frame[i].vcd_frm.virtual) {
-			if (luma_size <= frame[i].vcd_frm.alloc_len) {
-				memset(frame[i].vcd_frm.virtual,
-					 0x10101010, luma_size);
-				memset(frame[i].vcd_frm.virtual + luma_size,
-					 0x80808080,
+			memset(frame[i].vcd_frm.virtual, 0x10101010, luma_size);
+			memset(frame[i].vcd_frm.virtual + luma_size, 0x80808080,
 					frame[i].vcd_frm.alloc_len - luma_size);
-			} else {
-				DDL_MSG_ERROR("luma size error");
-				return VCD_ERR_FAIL;
-			}
 		}
 
 		luma[i] = DDL_OFFSET(ddl_context->dram_base_a.
@@ -339,6 +333,10 @@ u32 ddl_decoder_dpb_init(struct ddl_client_context *ddl)
 
 void ddl_release_context_buffers(struct ddl_context *ddl_context)
 {
+	if (ddl_context->memtype == MEMTYPE_SMI_KERNEL) {
+		ddl_pmem_free(&ddl_context->dram_base_a);
+		ddl_pmem_free(&ddl_context->dram_base_b);
+	}
 	ddl_pmem_free(&ddl_context->metadata_shared_input);
 	ddl_fw_release();
 }
@@ -461,9 +459,7 @@ struct ddl_client_context *ddl_get_current_ddl_client_for_command(
 
 u32 ddl_get_yuv_buf_size(u32 width, u32 height, u32 format)
 {
-	/* HTC_START (klockwork issue)*/
-	u32 mem_size, width_round_up, height_round_up, align = 0;
-	/* HTC_END */
+	u32 mem_size, width_round_up, height_round_up, align;
 
 	width_round_up  = width;
 	height_round_up = height;
@@ -705,9 +701,6 @@ u32 ddl_allocate_dec_hw_buffers(struct ddl_client_context *ddl)
 			DDL_KILO_BYTE(2));
 		if (!ptr)
 			status = VCD_ERR_ALLOC_FAIL;
-		else
-			memset(dec_bufs->desc.align_virtual_addr,
-				   0, buf_size.sz_desc);
 	}
 	if (status)
 		ddl_free_dec_hw_buffers(ddl);
@@ -955,44 +948,12 @@ u32 ddl_check_reconfig(struct ddl_client_context *ddl)
 
 void ddl_handle_reconfig(u32 res_change, struct ddl_client_context *ddl)
 {
-	struct ddl_decoder_data *decoder = &ddl->codec_data.decoder;
-	if ((decoder->cont_mode) &&
-		(res_change == DDL_RESL_CHANGE_DECREASED)) {
-		DDL_MSG_LOW("%s Resolution decreased, continue decoding\n",
-				 __func__);
-		vidc_sm_get_min_yc_dpb_sizes(
-					&ddl->shared_mem[ddl->command_channel],
-					&decoder->dpb_buf_size.size_y,
-					&decoder->dpb_buf_size.size_c);
-		DDL_MSG_LOW(" %s Resolution decreased, size_y = %u"
-				" size_c = %u\n",
-				__func__,
-				decoder->dpb_buf_size.size_y,
-				decoder->dpb_buf_size.size_c);
-		ddl_decoder_chroma_dpb_change(ddl);
-		vidc_sm_set_chroma_addr_change(
-				&ddl->shared_mem[ddl->command_channel],
-				true);
-		ddl_vidc_decode_frame_run(ddl);
-	} else {
+	if (res_change) {
 		DDL_MSG_LOW("%s Resolution change, start realloc\n",
 				 __func__);
-		decoder->reconfig_detected = true;
 		ddl->client_state = DDL_CLIENT_WAIT_FOR_EOS_DONE;
 		ddl->cmd_state = DDL_CMD_EOS;
 		vidc_1080p_frame_start_realloc(ddl->instance_id);
 	}
 }
 
-void ddl_fill_dec_desc_buffer(struct ddl_client_context *ddl)
-{
-	struct ddl_decoder_data *decoder = &ddl->codec_data.decoder;
-	struct vcd_frame_data *ip_bitstream = &(ddl->input_frame.vcd_frm);
-	struct ddl_buf_addr *dec_desc_buf = &(decoder->hw_bufs.desc);
-
-	if (ip_bitstream->desc_buf &&
-		ip_bitstream->desc_size < DDL_KILO_BYTE(128))
-		memcpy(dec_desc_buf->align_virtual_addr,
-			   ip_bitstream->desc_buf,
-			   ip_bitstream->desc_size);
-}

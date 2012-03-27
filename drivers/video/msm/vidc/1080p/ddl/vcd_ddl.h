@@ -14,7 +14,6 @@
 #ifndef _VCD_DDL_H_
 #define _VCD_DDL_H_
 
-#include <mach/msm_subsystem_map.h>
 #include "vcd_ddl_api.h"
 #include "vcd_ddl_core.h"
 #include "vcd_ddl_utils.h"
@@ -89,9 +88,6 @@ struct ddl_buf_addr{
 	u8  *physical_base_addr;
 	u8  *align_physical_addr;
 	u8  *align_virtual_addr;
-	phys_addr_t alloced_phys_addr;
-	struct msm_mapped_buffer *mapped_buffer;
-	struct ion_handle *alloc_handle;
 	u32 buffer_size;
 };
 enum ddl_cmd_state{
@@ -253,7 +249,6 @@ struct ddl_encoder_data{
 	u32  mb_info_enable;
 	u32  ext_enc_control_val;
 	u32  num_references_for_p_frame;
-	u32	 closed_gop;
 };
 struct ddl_decoder_data {
 	struct ddl_codec_data_hdr  hdr;
@@ -293,8 +288,6 @@ struct ddl_decoder_data {
 	u32  field_needed_for_prev_ip;
 	u32  prev_ip_frm_tag;
 	u32  cont_mode;
-	u32  reconfig_detected;
-	u32  dmx_disable;
 };
 union ddl_codec_data{
 	struct ddl_codec_data_hdr  hdr;
@@ -302,6 +295,7 @@ union ddl_codec_data{
 	struct ddl_encoder_data   encoder;
 };
 struct ddl_context{
+	int memtype;
 	u8 *core_virtual_base_addr;
 	void *client_data;
 	u32 device_state;
@@ -320,7 +314,6 @@ struct ddl_context{
 	struct ddl_buf_addr dram_base_a;
 	struct ddl_buf_addr dram_base_b;
 	struct ddl_hw_interface ddl_hw_response;
-	struct ion_client *video_ion_client;
 	void (*ddl_callback) (u32 event, u32 status, void *payload,
 		size_t sz, u32 *ddl_handle, void *const client_data);
 	void (*interrupt_clr) (void);
@@ -436,7 +429,6 @@ u32 ddl_insert_input_frame_to_pool(struct ddl_client_context *ddl,
 void ddl_decoder_chroma_dpb_change(struct ddl_client_context *ddl);
 u32  ddl_check_reconfig(struct ddl_client_context *ddl);
 void ddl_handle_reconfig(u32 res_change, struct ddl_client_context *ddl);
-void ddl_fill_dec_desc_buffer(struct ddl_client_context *ddl);
 
 #ifdef DDL_BUF_LOG
 void ddl_list_buffers(struct ddl_client_context *ddl);

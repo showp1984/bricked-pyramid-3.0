@@ -11,10 +11,8 @@
  *
  */
 #include <linux/memory_alloc.h>
-#include <mach/msm_subsystem_map.h>
 #include "vcd_ddl_utils.h"
 #include "vcd_ddl.h"
-#include "vcd_res_tracker_api.h"
 
 struct time_data {
 	unsigned int ddl_t1;
@@ -26,9 +24,6 @@ static struct time_data proc_time[MAX_TIME_DATA];
 
 #define DDL_FW_CHANGE_ENDIAN
 
-static unsigned int vidc_mmu_subsystem[] =	{
-		MSM_SUBSYSTEM_VIDEO, MSM_SUBSYSTEM_VIDEO_FWARE};
-
 #ifdef DDL_BUF_LOG
 static void ddl_print_buffer(struct ddl_context *ddl_context,
 	struct ddl_buf_addr *buf, u32 idx, u8 *str);
@@ -37,127 +32,71 @@ static void ddl_print_port(struct ddl_context *ddl_context,
 static void ddl_print_buffer_port(struct ddl_context *ddl_context,
 	struct ddl_buf_addr *buf, u32 idx, u8 *str);
 #endif
+
 void *ddl_pmem_alloc(struct ddl_buf_addr *addr, size_t sz, u32 alignment)
 {
-	u32 alloc_size, offset = 0, flags = 0;
-	u32 index = 0;
+	u32 alloc_size, offset = 0;
 	struct ddl_context *ddl_context;
-	struct msm_mapped_buffer *mapped_buffer = NULL;
-	int rc = -EINVAL;
-	ion_phys_addr_t phyaddr = 0;
-	size_t len = 0;
 	DBG_PMEM("\n%s() IN: Requested alloc size(%u)", __func__, (u32)sz);
 	if (!addr) {
 		DDL_MSG_ERROR("\n%s() Invalid Parameters", __func__);
-		goto bail_out;
+		return NULL;
 	}
 	ddl_context = ddl_get_context();
 	alloc_size = (sz + alignment);
-	if (res_trk_get_enable_ion()) {
-		if (!ddl_context->video_ion_client)
-			ddl_context->video_ion_client =
-				res_trk_get_ion_client();
-		if (!ddl_context->video_ion_client) {
-			DDL_MSG_ERROR("%s() :DDL ION Client Invalid handle\n",
-						 __func__);
-			goto bail_out;
-		}
-		addr->alloc_handle = ion_alloc(
-		ddl_context->video_ion_client, alloc_size, SZ_4K,
-			(1<<res_trk_get_mem_type()));
-		if (IS_ERR_OR_NULL(addr->alloc_handle)) {
-			DDL_MSG_ERROR("%s() :DDL ION alloc failed\n",
-						 __func__);
-			goto bail_out;
-		}
-		rc = ion_phys(ddl_context->video_ion_client,
-				addr->alloc_handle, &phyaddr,
-				 &len);
-		if (rc || !phyaddr) {
-			DDL_MSG_ERROR("%s():DDL ION client physical failed\n",
-						 __func__);
-			goto free_acm_ion_alloc;
-		}
-		addr->alloced_phys_addr = phyaddr;
-	} else {
-		addr->alloced_phys_addr = (phys_addr_t)
-		allocate_contiguous_memory_nomap(alloc_size,
-			res_trk_get_mem_type(), SZ_4K);
-		if (!addr->alloced_phys_addr) {
-			DDL_MSG_ERROR("%s() : acm alloc failed (%d)\n",
-					 __func__, alloc_size);
-			goto bail_out;
-		}
+	addr->physical_base_addr = (u8 *) allocate_contiguous_memory_nomap(
+				alloc_size, ddl_context->memtype, SZ_4K);
+	if (!addr->physical_base_addr) {
+		DDL_MSG_ERROR("%s() : pmem alloc failed (%d)\n", __func__,
+			alloc_size);
+		return NULL;
 	}
-	flags = MSM_SUBSYSTEM_MAP_IOVA | MSM_SUBSYSTEM_MAP_KADDR;
-	if (alignment == DDL_KILO_BYTE(128))
-			index = 1;
-	else if (alignment > SZ_4K)
-		flags |= MSM_SUBSYSTEM_ALIGN_IOVA_8K;
-
-	addr->mapped_buffer =
-	msm_subsystem_map_buffer((unsigned long)addr->alloced_phys_addr,
-	alloc_size, flags, &vidc_mmu_subsystem[index],
-	sizeof(vidc_mmu_subsystem[index])/sizeof(unsigned int));
-	if (IS_ERR(addr->mapped_buffer)) {
-		pr_err(" %s() buffer map failed", __func__);
-		goto free_acm_ion_alloc;
+	DDL_MSG_LOW("%s() : pmem alloc physical base addr/sz 0x%x / %d\n",\
+		__func__, (u32)addr->physical_base_addr, alloc_size);
+	addr->virtual_base_addr = (u8 *)ioremap((unsigned long)
+		addr->physical_base_addr, alloc_size);
+	if (!addr->virtual_base_addr) {
+		DDL_MSG_ERROR("%s() : ioremap failed, virtual(%x)\n", __func__,
+			(u32)addr->virtual_base_addr);
+		free_contiguous_memory_by_paddr(
+			(unsigned long) addr->physical_base_addr);
+		addr->physical_base_addr = NULL;
+		return NULL;
 	}
-	mapped_buffer = addr->mapped_buffer;
-	if (!mapped_buffer->vaddr || !mapped_buffer->iova[0]) {
-		pr_err("%s() map buffers failed\n", __func__);
-		goto free_map_buffers;
-	}
-	addr->physical_base_addr = (u8 *)mapped_buffer->iova[0];
-	addr->virtual_base_addr = mapped_buffer->vaddr;
+	DDL_MSG_LOW("%s() : pmem alloc virtual base addr/sz 0x%x / %d\n",\
+		__func__, (u32)addr->virtual_base_addr, alloc_size);
 	addr->align_physical_addr = (u8 *) DDL_ALIGN((u32)
 		addr->physical_base_addr, alignment);
 	offset = (u32)(addr->align_physical_addr -
 			addr->physical_base_addr);
 	addr->align_virtual_addr = addr->virtual_base_addr + offset;
 	addr->buffer_size = sz;
+	DDL_MSG_LOW("\n%s() : alig_phy_addr(%p) alig_vir_addr(%p)",
+		__func__, addr->align_physical_addr, addr->align_virtual_addr);
+	DBG_PMEM("\n%s() OUT: phy_addr(%p) vir_addr(%p) size(%u)",
+		__func__, addr->physical_base_addr, addr->virtual_base_addr,
+		addr->buffer_size);
 	return addr->virtual_base_addr;
-
-free_map_buffers:
-	msm_subsystem_unmap_buffer(addr->mapped_buffer);
-	addr->mapped_buffer = NULL;
-free_acm_ion_alloc:
-	if (ddl_context->video_ion_client) {
-		if (addr->alloc_handle) {
-			ion_free(ddl_context->video_ion_client,
-				addr->alloc_handle);
-			addr->alloc_handle = NULL;
-		}
-	} else {
-		free_contiguous_memory_by_paddr(
-			(unsigned long)addr->alloced_phys_addr);
-		addr->alloced_phys_addr = (phys_addr_t)NULL;
-	}
-bail_out:
-	return NULL;
 }
 
 void ddl_pmem_free(struct ddl_buf_addr *addr)
 {
-	struct ddl_context *ddl_context;
-	ddl_context = ddl_get_context();
-	if (!addr) {
-		pr_err("%s() invalid args\n", __func__);
-		return;
-	}
-	if (ddl_context->video_ion_client) {
-		if (!IS_ERR_OR_NULL(addr->alloc_handle)) {
-			ion_free(ddl_context->video_ion_client,
-				addr->alloc_handle);
-		}
-	} else {
-		if (addr->alloced_phys_addr)
-			free_contiguous_memory_by_paddr(
-				(unsigned long)addr->alloced_phys_addr);
-	}
-	if (addr->mapped_buffer)
-		msm_subsystem_unmap_buffer(addr->mapped_buffer);
-	memset(addr, 0, sizeof(struct ddl_buf_addr));
+	DBG_PMEM("\n%s() IN: phy_addr(%p) vir_addr(%p) size(%u)",
+		__func__, addr->physical_base_addr, addr->virtual_base_addr,
+		addr->buffer_size);
+	if (addr->virtual_base_addr)
+		iounmap((void *)addr->virtual_base_addr);
+	if (addr->physical_base_addr)
+		free_contiguous_memory_by_paddr(
+			(unsigned long) addr->physical_base_addr);
+	DBG_PMEM("\n%s() OUT: phy_addr(%p) vir_addr(%p) size(%u)",
+		__func__, addr->physical_base_addr, addr->virtual_base_addr,
+		addr->buffer_size);
+	addr->physical_base_addr   = NULL;
+	addr->virtual_base_addr    = NULL;
+	addr->align_virtual_addr   = NULL;
+	addr->align_physical_addr  = NULL;
+	addr->buffer_size = 0;
 }
 
 #ifdef DDL_BUF_LOG
@@ -309,29 +248,17 @@ u32 ddl_fw_init(struct ddl_buf_addr *dram_base)
 {
 
 	u8 *dest_addr;
-/*HTC_START*/
-	pr_info("[VID] enter ddl_fw_init()");
+
 	dest_addr = DDL_GET_ALIGNED_VITUAL(*dram_base);
 	if (vidc_video_codec_fw_size > dram_base->buffer_size ||
-		!vidc_video_codec_fw) {
-			pr_info("[VID] ddl_fw_init() failed");
-			return false;
-	}
-	pr_info("[VID] FW Addr / FW Size : %x/%d", (u32)vidc_video_codec_fw, vidc_video_codec_fw_size);
-	memset(dest_addr, 0, vidc_video_codec_fw_size);
-	memcpy(dest_addr, vidc_video_codec_fw, vidc_video_codec_fw_size);
-	msleep(10);
-	if (memcmp(dest_addr, vidc_video_codec_fw,
-		vidc_video_codec_fw_size)) {
-		pr_err("[VID] SMI MEMORY issue firmware is not good\n");
+		!vidc_video_codec_fw)
 		return false;
-	}
-/*HTC_END*/
-	pr_info("[VID] Firmware in SMI is good continue\n");
+	DDL_MSG_LOW("FW Addr / FW Size : %x/%d", (u32)vidc_video_codec_fw,
+		vidc_video_codec_fw_size);
+	memcpy(dest_addr, vidc_video_codec_fw,
+		vidc_video_codec_fw_size);
 #ifdef DDL_FW_CHANGE_ENDIAN
-	pr_info("[VID] before ddl_fw_change_endian()");
 	ddl_fw_change_endian(dest_addr, vidc_video_codec_fw_size);
-	pr_info("[VID] leave ddl_fw_init()");
 #endif
 	return true;
 }

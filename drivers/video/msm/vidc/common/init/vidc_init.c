@@ -30,26 +30,25 @@
 #include <linux/debugfs.h>
 #include <mach/clk.h>
 #include <linux/pm_runtime.h>
-#include <mach/msm_subsystem_map.h>
+
 #include "vcd_api.h"
 #include "vidc_init_internal.h"
 #include "vidc_init.h"
 #include "vcd_res_tracker_api.h"
 
 #if DEBUG
-#define DBG(x...) printk(KERN_DEBUG "[VID] " x)
+#define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
 #endif
 
 #define VIDC_NAME "msm_vidc_reg"
 
-#define ERR(x...) printk(KERN_ERR "[VID] " x)
+#define ERR(x...) printk(KERN_ERR x)
 
 static struct vidc_dev *vidc_device_p;
 static dev_t vidc_dev_num;
 static struct class *vidc_class;
-static unsigned int vidc_mmu_subsystem[] = {MSM_SUBSYSTEM_VIDEO};
 
 static const struct file_operations vidc_fops = {
 	.owner = THIS_MODULE,
@@ -79,7 +78,7 @@ void vidc_debugfs_file_create(struct dentry *root, const char *name,
 				u32 *var)
 {
 	struct dentry *vidc_debugfs_file =
-		debugfs_create_u32(name, S_IRUGO | S_IWUSR, root, var);
+	    debugfs_create_u32(name, S_IRUGO | S_IWUSR, root, var);
 	if (!vidc_debugfs_file)
 		ERR("%s(): Error creating/opening file %s\n", __func__, name);
 }
@@ -153,10 +152,7 @@ static int __devinit vidc_720p_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	/* HTC_START (klockwork issue)*/
-	if (resource->start)
-		vidc_device_p->phys_base = resource->start;
-	/* HTC_END */
+	vidc_device_p->phys_base = resource->start;
 	vidc_device_p->virt_base = ioremap(resource->start,
 	resource->end - resource->start + 1);
 
@@ -417,7 +413,7 @@ u32 vidc_lookup_addr_table(struct video_client_ctx *client_ctx,
 	}
 
 	if (found) {
-		*phy_addr = buf_addr_table[i].dev_addr;
+		*phy_addr = buf_addr_table[i].phy_addr;
 		*pmem_fd = buf_addr_table[i].pmem_fd;
 		*file = buf_addr_table[i].file;
 		*buffer_index = i;
@@ -449,19 +445,15 @@ EXPORT_SYMBOL(vidc_lookup_addr_table);
 u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 	enum buffer_dir buffer, unsigned long user_vaddr,
 	unsigned long *kernel_vaddr, int pmem_fd,
-	unsigned long buffer_addr_offset, unsigned int max_num_buffers,
-	unsigned long length)
+	unsigned long buffer_addr_offset, unsigned int max_num_buffers)
 {
 	unsigned long len, phys_addr;
-	struct file *file = NULL;
+	struct file *file;
 	u32 *num_of_buffers = NULL;
-	u32 i, flags;
+	u32 i;
 	struct buf_addr_table *buf_addr_table;
-	struct msm_mapped_buffer *mapped_buffer = NULL;
-	size_t ion_len;
-	struct ion_handle *buff_ion_handle = NULL;
 
-	if (!client_ctx || !length)
+	if (!client_ctx)
 		return false;
 
 	if (buffer == BUFFER_TYPE_INPUT) {
@@ -493,74 +485,25 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 			__func__, client_ctx, user_vaddr);
 		return false;
 	} else {
-		if (!vcd_get_ion_status()) {
-			if (get_pmem_file(pmem_fd, &phys_addr,
-					kernel_vaddr, &len, &file)) {
-				ERR("%s(): get_pmem_file failed\n", __func__);
-				return false;
-			}
-			put_pmem_file(file);
-		} else {
-			buff_ion_handle = ion_import_fd(
-				client_ctx->user_ion_client, pmem_fd);
-			if (!buff_ion_handle) {
-				ERR("%s(): get_ION_handle failed\n",
-				 __func__);
-				goto ion_error;
-			}
-			*kernel_vaddr = (unsigned long)
-				ion_map_kernel(
-				client_ctx->user_ion_client,
-				buff_ion_handle,
-				0);
-			if (!(*kernel_vaddr)) {
-				ERR("%s():ION virtual addr fail\n",
-				 __func__);
-				goto ion_error;
-			}
-			if (ion_phys(client_ctx->user_ion_client,
-					buff_ion_handle,
-					&phys_addr, &ion_len)) {
-				ERR("%s():ION physical addr fail\n",
-				 __func__);
-				goto ion_error;
-			}
-			len = (unsigned long) ion_len;
-		}
-		phys_addr += buffer_addr_offset;
-		(*kernel_vaddr) += buffer_addr_offset;
-		flags = (buffer == BUFFER_TYPE_INPUT) ? MSM_SUBSYSTEM_MAP_IOVA :
-		MSM_SUBSYSTEM_MAP_IOVA|MSM_SUBSYSTEM_ALIGN_IOVA_8K;
-		mapped_buffer = msm_subsystem_map_buffer(phys_addr, length,
-		flags, vidc_mmu_subsystem,
-		sizeof(vidc_mmu_subsystem)/sizeof(unsigned int));
-		if (IS_ERR(mapped_buffer)) {
-			pr_err("buffer map failed");
+		if (get_pmem_file(pmem_fd, &phys_addr,
+				kernel_vaddr, &len, &file)) {
+			ERR("%s(): get_pmem_file failed\n", __func__);
 			return false;
 		}
-		buf_addr_table[*num_of_buffers].client_data = (void *)
-			mapped_buffer;
-		buf_addr_table[*num_of_buffers].dev_addr =
-			mapped_buffer->iova[0];
+		put_pmem_file(file);
+		phys_addr += buffer_addr_offset;
+		(*kernel_vaddr) += buffer_addr_offset;
 		buf_addr_table[*num_of_buffers].user_vaddr = user_vaddr;
 		buf_addr_table[*num_of_buffers].kernel_vaddr = *kernel_vaddr;
 		buf_addr_table[*num_of_buffers].pmem_fd = pmem_fd;
 		buf_addr_table[*num_of_buffers].file = file;
 		buf_addr_table[*num_of_buffers].phy_addr = phys_addr;
-		buf_addr_table[*num_of_buffers].buff_ion_handle =
-						buff_ion_handle;
 		*num_of_buffers = *num_of_buffers + 1;
 		DBG("%s() : client_ctx = %p, user_virt_addr = 0x%08lx, "
-			"kernel_vaddr = 0x%08lx inserted!", __func__,
+			"kernel_vaddr = 0x%08lx inserted!",	__func__,
 			client_ctx, user_vaddr, *kernel_vaddr);
 	}
 	return true;
-ion_error:
-	if (*kernel_vaddr)
-		ion_unmap_kernel(client_ctx->user_ion_client, buff_ion_handle);
-	if (buff_ion_handle)
-		ion_free(client_ctx->user_ion_client, buff_ion_handle);
-	return false;
 }
 EXPORT_SYMBOL(vidc_insert_addr_table);
 
@@ -579,10 +522,12 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 	if (buffer == BUFFER_TYPE_INPUT) {
 		buf_addr_table = client_ctx->input_buf_addr_table;
 		num_of_buffers = &client_ctx->num_of_input_buffers;
+		DBG("%s(): buffer = INPUT\n", __func__);
 
 	} else {
 		buf_addr_table = client_ctx->output_buf_addr_table;
 		num_of_buffers = &client_ctx->num_of_output_buffers;
+		DBG("%s(): buffer = OUTPUT\n", __func__);
 	}
 
 	if (!*num_of_buffers)
@@ -593,26 +538,13 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 		user_vaddr != buf_addr_table[i].user_vaddr)
 		i++;
 	if (i == *num_of_buffers) {
-		pr_err("%s() : client_ctx = %p."
+		DBG("%s() : client_ctx = %p."
 			" user_virt_addr = 0x%08lx NOT found",
 			__func__, client_ctx, user_vaddr);
 		return false;
 	}
-	msm_subsystem_unmap_buffer(
-	(struct msm_mapped_buffer *)buf_addr_table[i].client_data);
 	*kernel_vaddr = buf_addr_table[i].kernel_vaddr;
-	if (buf_addr_table[i].buff_ion_handle) {
-		ion_unmap_kernel(client_ctx->user_ion_client,
-				buf_addr_table[i].buff_ion_handle);
-		ion_free(client_ctx->user_ion_client,
-				buf_addr_table[i].buff_ion_handle);
-		buf_addr_table[i].buff_ion_handle = NULL;
-	}
 	if (i < (*num_of_buffers - 1)) {
-		buf_addr_table[i].client_data =
-			buf_addr_table[*num_of_buffers - 1].client_data;
-		buf_addr_table[i].dev_addr =
-			buf_addr_table[*num_of_buffers - 1].dev_addr;
 		buf_addr_table[i].user_vaddr =
 			buf_addr_table[*num_of_buffers - 1].user_vaddr;
 		buf_addr_table[i].kernel_vaddr =
@@ -623,8 +555,6 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 			buf_addr_table[*num_of_buffers - 1].pmem_fd;
 		buf_addr_table[i].file =
 			buf_addr_table[*num_of_buffers - 1].file;
-		buf_addr_table[i].buff_ion_handle =
-			buf_addr_table[*num_of_buffers - 1].buff_ion_handle;
 	}
 	*num_of_buffers = *num_of_buffers - 1;
 	DBG("%s() : client_ctx = %p."

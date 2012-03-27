@@ -21,6 +21,7 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 	void *client_data)
 {
 	struct ddl_context *ddl_context;
+	struct res_trk_firmware_addr firmware_addr;
 	u32 status = VCD_S_SUCCESS;
 	void *ptr = NULL;
 	DDL_MSG_HIGH("ddl_device_init");
@@ -41,14 +42,10 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 	}
 	memset(ddl_context, 0, sizeof(struct ddl_context));
 	DDL_BUSY(ddl_context);
-	if (res_trk_get_enable_ion()) {
-		DDL_MSG_LOW("ddl_dev_init:ION framework enabled");
-		ddl_context->video_ion_client  =
-			res_trk_get_ion_client();
-		if (!ddl_context->video_ion_client) {
-			DDL_MSG_ERROR("ION client create failed");
-			return VCD_ERR_ILLEGAL_OP;
-		}
+	ddl_context->memtype = res_trk_get_mem_type();
+	if (ddl_context->memtype == -1) {
+		DDL_MSG_ERROR("ddl_dev_init:Illegal memtype");
+		return VCD_ERR_ILLEGAL_PARM;
 	}
 	ddl_context->ddl_callback = ddl_init_config->ddl_callback;
 	if (ddl_init_config->interrupt_clr)
@@ -69,11 +66,28 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 	ddl_client_transact(DDL_INIT_CLIENTS, NULL);
 	ddl_context->fw_memory_size =
 		DDL_FW_INST_GLOBAL_CONTEXT_SPACE_SIZE;
-	if (res_trk_get_firmware_addr(&ddl_context->dram_base_a)) {
-		DDL_MSG_ERROR("firmware allocation failed");
-		ptr = NULL;
+	if (ddl_context->memtype == MEMTYPE_SMI_KERNEL) {
+		ptr = ddl_pmem_alloc(&ddl_context->dram_base_a,
+			ddl_context->fw_memory_size, DDL_KILO_BYTE(128));
 	} else {
-		ptr = (void *)ddl_context->dram_base_a.virtual_base_addr;
+		if (!res_trk_get_firmware_addr(&firmware_addr) &&
+		   firmware_addr.buf_size >= ddl_context->fw_memory_size) {
+			if (DDL_ADDR_IS_ALIGNED(firmware_addr.device_addr,
+				DDL_KILO_BYTE(128))) {
+				ptr = (void *) firmware_addr.base_addr;
+				ddl_context->dram_base_a.physical_base_addr =
+				ddl_context->dram_base_a.align_physical_addr =
+					(u8 *)firmware_addr.device_addr;
+				ddl_context->dram_base_a.align_virtual_addr  =
+				ddl_context->dram_base_a.virtual_base_addr =
+					firmware_addr.base_addr;
+				ddl_context->dram_base_a.buffer_size =
+					ddl_context->fw_memory_size;
+			} else {
+				DDL_MSG_ERROR("firmware base not aligned %p",
+					(void *)firmware_addr.device_addr);
+			}
+		}
 	}
 	if (!ptr) {
 		DDL_MSG_ERROR("Memory Aocation Failed for FW Base");
@@ -100,6 +114,10 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 		DDL_MSG_ERROR("ddl_dev_init:fw_init_failed");
 		status = VCD_ERR_ALLOC_FAIL;
 	}
+	if (!status && ddl_context->memtype == MEMTYPE_EBI1)
+		clean_caches((unsigned long)firmware_addr.base_addr,
+		firmware_addr.buf_size,	firmware_addr.device_addr);
+
 	if (!status) {
 		ddl_context->cmd_state = DDL_CMD_DMA_INIT;
 		ddl_vidc_core_init(ddl_context);
@@ -136,7 +154,6 @@ u32 ddl_device_release(void *client_data)
 	DDL_MSG_LOW("FW_ENDDONE");
 	ddl_context->core_virtual_base_addr = NULL;
 	ddl_release_context_buffers(ddl_context);
-	ddl_context->video_ion_client = NULL;
 	DDL_IDLE(ddl_context);
 	return VCD_S_SUCCESS;
 }
@@ -278,13 +295,21 @@ u32 ddl_encode_start(u32 *ddl_handle, void *client_data)
 #ifdef DDL_BUF_LOG
 	ddl_list_buffers(ddl);
 #endif
-
-	ptr = ddl_pmem_alloc(&encoder->seq_header,
-		DDL_ENC_SEQHEADER_SIZE, DDL_LINEAR_BUFFER_ALIGN_BYTES);
-	if (!ptr) {
-		ddl_free_enc_hw_buffers(ddl);
-		DDL_MSG_ERROR("ddl_enc_start:Seq_hdr_alloc_failed");
-		return VCD_ERR_ALLOC_FAIL;
+	if ((encoder->codec.codec == VCD_CODEC_MPEG4 &&
+		!encoder->short_header.short_header) ||
+		encoder->codec.codec == VCD_CODEC_H264) {
+		ptr = ddl_pmem_alloc(&encoder->seq_header,
+			DDL_ENC_SEQHEADER_SIZE, DDL_LINEAR_BUFFER_ALIGN_BYTES);
+		if (!ptr) {
+			ddl_free_enc_hw_buffers(ddl);
+			DDL_MSG_ERROR("ddl_enc_start:Seq_hdr_alloc_failed");
+			return VCD_ERR_ALLOC_FAIL;
+		}
+	} else {
+		encoder->seq_header.buffer_size = 0;
+		encoder->seq_header.virtual_base_addr = 0;
+		encoder->seq_header.align_physical_addr = 0;
+		encoder->seq_header.align_virtual_addr = 0;
 	}
 	if (!ddl_take_command_channel(ddl_context, ddl, client_data))
 		return VCD_ERR_BUSY;
