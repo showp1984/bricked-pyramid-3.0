@@ -388,7 +388,7 @@ static ssize_t pm8058_led_off_timer_store(struct device *dev,
 	sec = -1;
 	sscanf(buf, "%d %d", &min, &sec);
 
-	if (min < 0 || min > 255)
+	if (min < 0 || min > 255 || min == 5)
 		return -EINVAL;
 	if (sec < 0 || sec > 255)
 		return -EINVAL;
