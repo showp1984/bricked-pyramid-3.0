@@ -1498,6 +1498,13 @@ config CPU_VOLTAGE_TABLE
 	bool "Enable CPU Voltage Table via sysfs for adjustements"
 	default n
 
+config KGSL_GPUOC
+	bool "This enables GPU Overclocking"
+	default n
+	help
+	  This enables 320Mhz max on the 3D core and 266Mhz max on the
+	  2D core and pushes the bandwidth of 2D & 3D.
+
 if CPU_FREQ_MSM
 
 config MSM_CPU_FREQ_SET_MIN_MAX
