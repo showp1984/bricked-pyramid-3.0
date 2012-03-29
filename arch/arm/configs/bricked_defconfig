@@ -2266,7 +2266,7 @@ CONFIG_USB_ANDROID_ECM=y
 # OTG and related infrastructure
 #
 CONFIG_USB_OTG_UTILS=y
-# CONFIG_USB_OTG_WAKELOCK is not set
+CONFIG_USB_OTG_WAKELOCK=y
 # CONFIG_USB_GPIO_VBUS is not set
 # CONFIG_USB_ULPI is not set
 # CONFIG_USB_MSM_OTG_72K is not set
