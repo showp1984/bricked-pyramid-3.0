@@ -1012,7 +1012,7 @@ CONFIG_RPS=y
 # CONFIG_RFS_ACCEL is not set
 # CONFIG_XPS is not set
 CONFIG_HAVE_BPF_JIT=y
-# CONFIG_BPF_JIT is not set
+CONFIG_BPF_JIT=y
 
 #
 # Network testing
