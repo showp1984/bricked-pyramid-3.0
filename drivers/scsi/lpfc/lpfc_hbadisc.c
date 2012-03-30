@@ -1996,7 +1996,6 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				spin_lock_irq(&phba->hbalock);
 				phba->fcf.fcf_flag |= FCF_REDISC_FOV;
 				spin_unlock_irq(&phba->hbalock);
-				lpfc_sli4_mbox_cmd_free(phba, mboxq);
 				lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						LPFC_FCOE_FCF_GET_FIRST);
 				return;
@@ -3217,6 +3216,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
+	vport->fc_flag &= ~FC_VPORT_NEEDS_INIT_VPI;
 	spin_unlock_irq(shost->host_lock);
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */

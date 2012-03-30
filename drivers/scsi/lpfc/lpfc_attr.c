@@ -796,6 +796,47 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_pdev_status_reg_wait - Wait for pdev status register for readyness
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * SLI4 interface type-2 device to wait on the sliport status register for
+ * the readyness after performing a firmware reset.
+ *
+ * Returns:
+ * zero for success
+ **/
+static int
+lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
+{
+	struct lpfc_register portstat_reg;
+	int i;
+
+
+	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+		   &portstat_reg.word0);
+
+	/* wait for the SLI port firmware ready after firmware reset */
+	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
+		msleep(10);
+		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			   &portstat_reg.word0);
+		if (!bf_get(lpfc_sliport_status_err, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rn, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rdy, &portstat_reg))
+			continue;
+		break;
+	}
+
+	if (i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT)
+		return 0;
+	else
+		return -EIO;
+}
+
+/**
  * lpfc_sli4_pdev_reg_request - Request physical dev to perform a register acc
  * @phba: lpfc_hba pointer.
  *
@@ -1342,6 +1383,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 		"3051 lpfc_poll changed from %d to %d\n",
 		phba->cfg_poll, val);
 
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+		"3051 lpfc_poll changed from %d to %d\n",
+		phba->cfg_poll, val);
+
 	spin_lock_irq(&phba->hbalock);
 
 	old_val = phba->cfg_poll;
@@ -1552,6 +1597,9 @@ static int \
 lpfc_##attr##_init(struct lpfc_hba *phba, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
+			"3052 lpfc_" #attr " changed from %d to %d\n", \
+			phba->cfg_##attr, val); \
 		phba->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -1715,6 +1763,9 @@ static int \
 lpfc_##attr##_init(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
+			"3053 lpfc_" #attr " changed from %d to %d\n", \
+			vport->cfg_##attr, val); \
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -3115,6 +3166,9 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 		if (nolip)
 			return strlen(buf);
 
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+			"3054 lpfc_topology changed from %d to %d\n",
+			prev_val, val);
 		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
 		if (err) {
 			phba->cfg_link_speed = prev_val;
