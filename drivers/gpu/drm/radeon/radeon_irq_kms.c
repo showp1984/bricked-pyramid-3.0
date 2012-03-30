@@ -160,6 +160,52 @@ static bool radeon_msi_ok(struct radeon_device *rdev)
 	return true;
 }
 
+static bool radeon_msi_ok(struct radeon_device *rdev)
+{
+	/* RV370/RV380 was first asic with MSI support */
+	if (rdev->family < CHIP_RV380)
+		return false;
+
+	/* MSIs don't work on AGP */
+	if (rdev->flags & RADEON_IS_AGP)
+		return false;
+
+	/* force MSI on */
+	if (radeon_msi == 1)
+		return true;
+	else if (radeon_msi == 0)
+		return false;
+
+	/* Quirks */
+	/* HP RS690 only seems to work with MSIs. */
+	if ((rdev->pdev->device == 0x791f) &&
+	    (rdev->pdev->subsystem_vendor == 0x103c) &&
+	    (rdev->pdev->subsystem_device == 0x30c2))
+		return true;
+
+	/* Dell RS690 only seems to work with MSIs. */
+	if ((rdev->pdev->device == 0x791f) &&
+	    (rdev->pdev->subsystem_vendor == 0x1028) &&
+	    (rdev->pdev->subsystem_device == 0x01fc))
+		return true;
+
+	/* Dell RS690 only seems to work with MSIs. */
+	if ((rdev->pdev->device == 0x791f) &&
+	    (rdev->pdev->subsystem_vendor == 0x1028) &&
+	    (rdev->pdev->subsystem_device == 0x01fd))
+		return true;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		/* APUs work fine with MSIs */
+		if (rdev->family >= CHIP_PALM)
+			return true;
+		/* lots of IGPs have problems with MSIs */
+		return false;
+	}
+
+	return true;
+}
+
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int i;
