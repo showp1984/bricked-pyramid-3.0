@@ -27,7 +27,7 @@
  * GPIO on the UART CTS, and the first RX byte is known (for example, with the
  * Bluetooth Texas Instruments HCILL protocol), since the first RX byte will
  * always be lost. RTS will be asserted even while the UART is off in this mode
- * of operation. See msm_serial_hs_platform_data.rx_wakeup_irq.
+ * of operation. See msm_serial_hs_platform_data.wakeup_irq.
  */
 
 #include <linux/module.h>
@@ -228,6 +228,7 @@ static DEVICE_ATTR(clock, S_IWUSR | S_IRUGO, show_clock, set_clock);
 
 static inline unsigned int use_low_power_wakeup(struct msm_hs_port *msm_uport)
 {
+	printk(KERN_INFO "msm_serial_hs: low_power_wakeup: %d\n", msm_uport->wakeup.irq);
 	return (msm_uport->wakeup.irq > 0);
 }
 
@@ -438,7 +439,6 @@ static int msm_hs_init_clk(struct uart_port *uport)
 	int ret;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	wake_lock(&msm_uport->dma_wake_lock);
 	/* Set up the MREG/NREG/DREG/MNDREG */
 	ret = clk_set_rate(msm_uport->clk, uport->uartclk);
 	if (ret) {
@@ -1090,6 +1090,7 @@ out:
 	clk_disable(msm_uport->clk);
 	/* release wakelock in 500ms, not immediately, because higher layers
 	 * don't always take wakelocks when they should */
+	printk(KERN_INFO "msm_serial_hs: releasing rx_wake_lock after %d\n ms", HZ / 2);
 	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 2);
 	/* tty_flip_buffer_push() might call msm_hs_start(), so unlock */
 	spin_unlock_irqrestore(&uport->lock, flags);
@@ -1324,18 +1325,23 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	struct circ_buf *tx_buf = &uport->state->xmit;
 
+	printk(KERN_INFO "msm_serial_hs: entering check_clock_off_locked\n");
+
 	/* Cancel if tx tty buffer is not empty, dma is in flight,
 	 * or tx fifo is not empty */
 	if (msm_uport->clk_state != MSM_HS_CLK_REQUEST_OFF ||
 	    !uart_circ_empty(tx_buf) || msm_uport->tx.dma_in_flight ||
 	    msm_uport->imr_reg & UARTDM_ISR_TXLEV_BMSK) {
+		printk(KERN_INFO "msm_serial_hs: dma in flight, clock on\n");
 		return -1;
 	}
 
 	/* Make sure the uart is finished with the last byte */
 	sr_status = msm_hs_read(uport, UARTDM_SR_ADDR);
-	if (!(sr_status & UARTDM_SR_TXEMT_BMSK))
+	if (!(sr_status & UARTDM_SR_TXEMT_BMSK)) {
+		printk(KERN_INFO "msm_serial_hs: uart not finished, retry\n");
 		return 0;  /* retry */
+	}
 
 	/* Make sure forced RXSTALE flush complete */
 	switch (msm_uport->clk_req_off_state) {
@@ -1347,9 +1353,11 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 		 * Hence mb() requires here.
 		 */
 		mb();
+		printk(KERN_INFO "msm_serial_hs: writel not complete, retry\n");
 		return 0;  /* RXSTALE flush not complete - retry */
 	case CLK_REQ_OFF_RXSTALE_ISSUED:
 	case CLK_REQ_OFF_FLUSH_ISSUED:
+		printk(KERN_INFO "msm_serial_hs: stale or flushing, retry\n");
 		return 0;  /* RXSTALE flush not complete - retry */
 	case CLK_REQ_OFF_RXSTALE_FLUSHED:
 		break;  /* continue */
@@ -1358,6 +1366,7 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 	if (msm_uport->rx.flush != FLUSH_SHUTDOWN) {
 		if (msm_uport->rx.flush == FLUSH_NONE)
 			msm_hs_stop_rx_locked(uport);
+		printk(KERN_INFO "msm_serial_hs: flush not shutdown, retry\n");
 		return 0;  /* come back later to really clock off */
 	}
 
@@ -1370,6 +1379,7 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 		msm_uport->wakeup.ignore = 1;
 		enable_irq(msm_uport->wakeup.irq);
 	}
+	printk(KERN_INFO "msm_serial_hs: clk off and release dma_wake_lock\n");
 	wake_unlock(&msm_uport->dma_wake_lock);
 	return 1;
 }
@@ -1381,9 +1391,12 @@ static enum hrtimer_restart msm_hs_clk_off_retry(struct hrtimer *timer) {
 						     clk_off_timer);
 	struct uart_port *uport = &msm_uport->uport;
 
+	printk(KERN_INFO "msm_serial_hs: timer expired\n");
+
 	spin_lock_irqsave(&uport->lock, flags);
 
 	if (!msm_hs_check_clock_off_locked(uport)) {
+		printk(KERN_INFO "msm_serial_hs: clock not off, restart timer\n");
 		hrtimer_forward_now(timer, msm_uport->clk_off_delay);
 		ret = HRTIMER_RESTART;
 	}
@@ -1407,8 +1420,11 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	isr_status = msm_hs_read(uport, UARTDM_MISR_ADDR);
 
+	printk(KERN_INFO "msm_serial_hs: msm_hs_isr, got irq %d\n", irq);
+
 	/* Uart RX starting */
 	if (isr_status & UARTDM_ISR_RXLEV_BMSK) {
+		printk(KERN_INFO "msm_serial_hs: acquiring rx_wake_lock\n");
 		wake_lock(&rx->wake_lock);  /* hold wakelock while rx dma */
 		msm_uport->imr_reg &= ~UARTDM_ISR_RXLEV_BMSK;
 		msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
@@ -1470,10 +1486,12 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 		 * Hence mb() requires here.
 		 */
 		mb();
-		if (!msm_hs_check_clock_off_locked(uport))
+		if (!msm_hs_check_clock_off_locked(uport)) {
+			printk(KERN_INFO "msm_serial_hs: clock on, starting timer\n");
 			hrtimer_start(&msm_uport->clk_off_timer,
 				      msm_uport->clk_off_delay,
 				      HRTIMER_MODE_REL);
+		}
 	}
 
 	/* Change in CTS interrupt */
@@ -1514,6 +1532,7 @@ static void msm_hs_request_clock_on_locked(struct uart_port *uport) {
 	switch (msm_uport->clk_state) {
 	case MSM_HS_CLK_OFF:
 		wake_lock(&msm_uport->dma_wake_lock);
+		printk(KERN_INFO "msm_serial_hs: request clk on, acquire dma_wake_lock\n");
 		clk_enable(msm_uport->clk);
 		if (msm_uport->pclk)
 			ret = clk_enable(msm_uport->pclk);
@@ -1621,6 +1640,10 @@ static int msm_hs_startup(struct uart_port *uport)
 	if (unlikely(ret))
 		return ret;
 
+	/* acquire lock only for initialization */
+	wake_lock(&msm_uport->dma_wake_lock);
+	printk(KERN_INFO "msm_serial_hs: init clk, acquire dma_wake_lock\n");
+
 	/* Set auto RFR Level */
 	data = msm_hs_read(uport, UARTDM_MR1_ADDR);
 	data &= ~UARTDM_MR1_AUTO_RFR_LEVEL1_BMSK;
@@ -1706,6 +1729,11 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_hs_start_rx_locked(uport);
 
 	spin_unlock_irqrestore(&uport->lock, flags);
+
+	/* release wakelock after initialization */
+	wake_unlock(&msm_uport->dma_wake_lock);
+	printk(KERN_INFO "msm_serial_hs: releasing post-init dma_wake_lock\n");
+
 	ret = pm_runtime_set_active(uport->dev);
 	if (ret)
 		dev_err(uport->dev, "set active error:%d\n", ret);
@@ -1872,7 +1900,7 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (pdata == NULL)
 		msm_uport->wakeup.irq = -1;
 	else {
-		msm_uport->wakeup.irq = pdata->rx_wakeup_irq;
+		msm_uport->wakeup.irq = pdata->wakeup_irq;
 		msm_uport->wakeup.ignore = 1;
 		msm_uport->wakeup.inject_rx = pdata->inject_rx_on_wakeup;
 		msm_uport->wakeup.rx_to_inject = pdata->rx_to_inject;
