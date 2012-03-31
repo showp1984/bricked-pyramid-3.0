@@ -1872,7 +1872,7 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (pdata == NULL)
 		msm_uport->wakeup.irq = -1;
 	else {
-		msm_uport->wakeup.irq = pdata->rx_wakeup_irq;
+		msm_uport->wakeup.irq = pdata->wakeup_irq;
 		msm_uport->wakeup.ignore = 1;
 		msm_uport->wakeup.inject_rx = pdata->inject_rx_on_wakeup;
 		msm_uport->wakeup.rx_to_inject = pdata->rx_to_inject;
