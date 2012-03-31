@@ -50,6 +50,9 @@ static DEFINE_PER_CPU(struct cpufreq_cpu_save_data, cpufreq_policy_save);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
+//cmdline_khz
+extern uint32_t cmdline_maxkhz, cmdline_minkhz;
+
 /*
  * cpu_policy_rwsem is a per CPU reader-writer semaphore designed to cure
  * all cpufreq/hotplug/workqueue/etc related lock issues.
@@ -363,8 +366,19 @@ static ssize_t show_##file_name				\
 	return sprintf(buf, "%u\n", policy->object);	\
 }
 
+#define show_one_cpuinfomaxfreq(file_name, object)		\
+static ssize_t show_##file_name					\
+(struct cpufreq_policy *policy, char *buf)			\
+{								\
+	if (cmdline_maxkhz) { 				    	\
+		return sprintf(buf, "%u\n", cmdline_maxkhz);	\
+	} else {						\
+		return sprintf(buf, "%u\n", policy->object);	\
+	}							\
+}
+
 show_one(cpuinfo_min_freq, cpuinfo.min_freq);
-show_one(cpuinfo_max_freq, max);
+show_one_cpuinfomaxfreq(cpuinfo_max_freq, cpuinfo.max_freq);
 show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
