@@ -2266,36 +2266,14 @@ static struct attribute_group pyramid_properties_attr_group = {
 
 #define TS_PEN_IRQ_GPIO 61
 #ifdef CONFIG_SERIAL_MSM_HS
-static int configure_uart_gpios(int on)
-{
-	int ret = 0, i;
-	int uart_gpios[] = {
-		PYRAMID_GPIO_BT_UART1_TX,
-		PYRAMID_GPIO_BT_UART1_RX,
-		PYRAMID_GPIO_BT_UART1_CTS,
-		PYRAMID_GPIO_BT_UART1_RTS,
-	};
-	for (i = 0; i < ARRAY_SIZE(uart_gpios); i++) {
-		if (on) {
-			ret = msm_gpiomux_get(uart_gpios[i]);
-			if (unlikely(ret))
-				break;
-		} else {
-			ret = msm_gpiomux_put(uart_gpios[i]);
-			if (unlikely(ret))
-				return ret;
-		}
-	}
-	if (ret)
-		for (; i >= 0; i--)
-			msm_gpiomux_put(uart_gpios[i]);
-	return ret;
-}
-
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
-	.inject_rx_on_wakeup = 1,
-	.rx_to_inject = 0xFD,
-	.gpio_config = configure_uart_gpios,
+	.inject_rx_on_wakeup = 0,
+	.cpu_lock_supported = 1,
+
+	/* for brcm BT */
+	.bt_wakeup_pin_supported = 1,
+	.bt_wakeup_pin = PYRAMID_GPIO_BT_CHIP_WAKE,
+	.host_wakeup_pin = PYRAMID_GPIO_BT_HOST_WAKE,
 };
 #endif
 
@@ -4877,7 +4855,8 @@ static void __init msm8x60_init_buses(void)
 #endif
 
 #ifdef CONFIG_SERIAL_MSM_HS
-	msm_uart_dm1_pdata.wakeup_irq = gpio_to_irq(PYRAMID_GPIO_BT_UART1_RX);
+	msm_uart_dm1_pdata.rx_wakeup_irq = gpio_to_irq(PYRAMID_GPIO_BT_HOST_WAKE);
+	msm_device_uart_dm1.name = "msm_serial_hs_brcm"; /* for brcm BT */
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 
