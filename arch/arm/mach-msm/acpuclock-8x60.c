@@ -95,6 +95,8 @@ static const void * const clk_sel_addr[] = {SPSS0_CLK_SEL_ADDR,
 static const int rpm_vreg_voter[] = { RPM_VREG_VOTER1, RPM_VREG_VOTER2 };
 static struct regulator *regulator_sc[NR_CPUS];
 
+extern uint32_t cmdline_maxkhz, cmdline_minkhz;
+
 enum scplls {
 	CPU0 = 0,
 	CPU1,
@@ -845,6 +847,34 @@ static struct notifier_block __cpuinitdata acpuclock_cpu_notifier = {
 	.notifier_call = acpuclock_cpu_callback,
 };
 
+uint32_t acpu_check_khz_value(unsigned long khz)
+{
+	struct clkctl_acpu_speed *f;
+
+	if (khz >= 1944000)
+		return CONFIG_MSM_CPU_FREQ_MAX;
+
+	for (f = acpu_freq_tbl_oc; f->acpuclk_khz != 0; f++) {
+		if ((khz < 192000) && (f->acpuclk_khz == (khz*1000))) {
+			return f->acpuclk_khz;
+		}
+		if (f->acpuclk_khz == khz) {
+			return 1;
+		}
+		if (khz > f->acpuclk_khz) {
+			f++;
+			if (khz < f->acpuclk_khz) {
+				f--;
+				return f->acpuclk_khz;
+			}
+			f--;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(acpu_check_khz_value);
+
 static unsigned int __init select_freq_plan(void)
 {
 	uint32_t max_khz;
@@ -900,8 +930,18 @@ static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 	bus_init();
 
 	/* Improve boot time by ramping up CPUs immediately. */
-	for_each_online_cpu(cpu)
-		acpuclk_8x60_set_rate(cpu, CONFIG_MSM_CPU_FREQ_MAX, SETRATE_INIT);
+	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
+		for_each_online_cpu(cpu)
+			acpuclk_8x60_set_rate(cpu, cmdline_maxkhz, SETRATE_INIT);
+	} else {
+#ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
+		for_each_online_cpu(cpu)
+			acpuclk_8x60_set_rate(cpu, CONFIG_MSM_CPU_FREQ_MAX, SETRATE_INIT);
+#else
+		for_each_online_cpu(cpu)
+			acpuclk_8x60_set_rate(cpu, 1188000, SETRATE_INIT);
+#endif
+	}
 
 	acpuclk_register(&acpuclk_8x60_data);
 	cpufreq_table_init();
