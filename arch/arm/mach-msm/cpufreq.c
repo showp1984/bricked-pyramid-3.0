@@ -52,6 +52,75 @@ static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
 static int override_cpu;
 
+uint32_t cmdline_maxkhz, cmdline_minkhz;
+static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
+{
+	uint32_t check;
+	unsigned long ui_khz;
+	int err;
+
+	err = strict_strtoul(maxkhz, 0, &ui_khz);
+	if (err) {
+		cmdline_maxkhz = CONFIG_MSM_CPU_FREQ_MAX;
+		printk(KERN_INFO "[cmdline]: ERROR while converting! using default value!");
+		printk(KERN_INFO "[cmdline]: maxkhz='%i'\n", cmdline_maxkhz);
+		return 1;
+	}
+
+	check = acpu_check_khz_value(ui_khz);
+
+	if (check == 1) {
+		cmdline_maxkhz = ui_khz;
+		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+	}
+	if (check == 0) {
+		cmdline_maxkhz = CONFIG_MSM_CPU_FREQ_MAX;
+		printk(KERN_INFO "[cmdline]: ERROR! using default value!");
+		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+	}
+	if (check > 1) {
+		cmdline_maxkhz = check;
+		printk(KERN_INFO "[cmdline]: AUTOCORRECT! Could not find entered value in the acpu table!");
+		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+	}
+        return 1;
+}
+__setup("maxkhz=", cpufreq_read_maxkhz_cmdline);
+
+static int __init cpufreq_read_minkhz_cmdline(char *minkhz)
+{
+	uint32_t check;
+	unsigned long ui_khz;
+	int err;
+
+	err = strict_strtoul(minkhz, 0, &ui_khz);
+	if (err) {
+		cmdline_minkhz = CONFIG_MSM_CPU_FREQ_MIN;
+		printk(KERN_INFO "[cmdline]: ERROR while converting! using default value!");
+		printk(KERN_INFO "[cmdline]: minkhz='%i'\n", cmdline_minkhz);
+		return 1;
+	}
+
+	check = acpu_check_khz_value(ui_khz);
+
+	if (check == 1) {
+		cmdline_minkhz = ui_khz;
+		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+	}
+	if (check == 0) {
+		cmdline_minkhz = CONFIG_MSM_CPU_FREQ_MIN;
+		printk(KERN_INFO "[cmdline]: ERROR! using default value!");
+		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+	}
+	if (check > 1) {
+		cmdline_minkhz = check;
+		printk(KERN_INFO "[cmdline]: AUTOCORRECT! Could not find entered value in the acpu table!");
+		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+	}
+        return 1;
+}
+__setup("minkhz=", cpufreq_read_minkhz_cmdline);
+
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 {
 	int ret = 0;
@@ -180,15 +249,25 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	if (table == NULL)
 		return -ENODEV;
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {
+		if ((cmdline_maxkhz) && (cmdline_minkhz)) {
+			policy->cpuinfo.min_freq = cmdline_minkhz;
+			policy->cpuinfo.max_freq = cmdline_maxkhz;
+		} else {
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->cpuinfo.min_freq = CONFIG_MSM_CPU_FREQ_MIN;
 		policy->cpuinfo.max_freq = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
+		}
 	}
+	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
+		policy->cpuinfo.min_freq = cmdline_minkhz;
+		policy->cpuinfo.max_freq = cmdline_maxkhz;
+	} else {
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
+	}
 
 	cur_freq = acpuclk_get_rate(policy->cpu);
 	if (cpufreq_frequency_table_target(policy, table, cur_freq,
