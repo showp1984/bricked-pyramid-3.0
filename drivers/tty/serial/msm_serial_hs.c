@@ -160,7 +160,6 @@ struct msm_hs_port {
 	enum msm_hs_clk_req_off_state_e clk_req_off_state;
 
 	struct msm_hs_wakeup wakeup;
-	struct wake_lock dma_wake_lock;  /* held while any DMA active */
 };
 
 #define MSM_UARTDM_BURST_SIZE 16   /* DM burst size (in bytes) */
@@ -415,7 +414,6 @@ static int __devexit msm_hs_remove(struct platform_device *pdev)
 			 DMA_TO_DEVICE);
 
 	wake_lock_destroy(&msm_uport->rx.wake_lock);
-	wake_lock_destroy(&msm_uport->dma_wake_lock);
 
 	uart_remove_one_port(&msm_hs_driver, &msm_uport->uport);
 	clk_put(msm_uport->clk);
@@ -438,7 +436,6 @@ static int msm_hs_init_clk(struct uart_port *uport)
 	int ret;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	wake_lock(&msm_uport->dma_wake_lock);
 	/* Set up the MREG/NREG/DREG/MNDREG */
 	ret = clk_set_rate(msm_uport->clk, uport->uartclk);
 	if (ret) {
@@ -1330,7 +1327,6 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 		msm_uport->wakeup.ignore = 1;
 		enable_irq(msm_uport->wakeup.irq);
 	}
-	wake_unlock(&msm_uport->dma_wake_lock);
 	return 1;
 }
 
@@ -1473,7 +1469,6 @@ static void msm_hs_request_clock_on_locked(struct uart_port *uport) {
 
 	switch (msm_uport->clk_state) {
 	case MSM_HS_CLK_OFF:
-		wake_lock(&msm_uport->dma_wake_lock);
 		clk_enable(msm_uport->clk);
 		if (msm_uport->pclk)
 			ret = clk_enable(msm_uport->pclk);
@@ -1703,8 +1698,6 @@ static int uartdm_init_port(struct uart_port *uport)
 
 	init_waitqueue_head(&rx->wait);
 	wake_lock_init(&rx->wake_lock, WAKE_LOCK_SUSPEND, "msm_serial_hs_rx");
-	wake_lock_init(&msm_uport->dma_wake_lock, WAKE_LOCK_SUSPEND,
-		       "msm_serial_hs_dma");
 
 	tasklet_init(&rx->tlet, msm_serial_hs_rx_tlet,
 			(unsigned long) &rx->tlet);
@@ -1784,7 +1777,6 @@ free_pool:
 
 exit_tasket_init:
 	wake_lock_destroy(&msm_uport->rx.wake_lock);
-	wake_lock_destroy(&msm_uport->dma_wake_lock);
 	tasklet_kill(&msm_uport->tx.tlet);
 	tasklet_kill(&msm_uport->rx.tlet);
 	dma_unmap_single(uport->dev, msm_uport->tx.mapped_cmd_ptr_ptr,
@@ -1982,7 +1974,6 @@ static void msm_hs_shutdown(struct uart_port *uport)
 		clk_disable(msm_uport->clk);  /* to balance clk_state */
 		if (msm_uport->pclk)
 			clk_disable(msm_uport->pclk);
-		wake_unlock(&msm_uport->dma_wake_lock);
 	}
 	msm_uport->clk_state = MSM_HS_CLK_PORT_OFF;
 
