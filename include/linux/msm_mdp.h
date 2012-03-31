@@ -236,6 +236,7 @@ struct msmfb_data {
 	int id;
 	uint32_t flags;
 	uint32_t priv;
+	uint32_t iova;
 };
 
 #define MSMFB_NEW_REQUEST -1
