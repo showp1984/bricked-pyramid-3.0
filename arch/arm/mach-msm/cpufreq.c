@@ -52,6 +52,7 @@ static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
 static int override_cpu;
 
+/* start cmdline_khz */
 uint32_t cmdline_maxkhz, cmdline_minkhz;
 static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
 {
@@ -120,6 +121,7 @@ static int __init cpufreq_read_minkhz_cmdline(char *minkhz)
         return 1;
 }
 __setup("minkhz=", cpufreq_read_minkhz_cmdline);
+/* end cmdline_khz */
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 {
