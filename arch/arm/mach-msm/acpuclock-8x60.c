@@ -910,7 +910,13 @@ int processor_name_read_proc(char *page, char **start, off_t off,
 			   int count, int *eof, void *data)
 {
 	char *p = page;
-	p += sprintf(p, "1.5GHz x2 - Bricked");
+	if (cmdline_maxkhz) {
+		p += sprintf(p, "%u", (cmdline_maxkhz/1000));
+		p += sprintf(p, "MHz x2 - Bricked");
+	} else {
+		p += sprintf(p, "%u", (CONFIG_MSM_CPU_FREQ_MAX/1000));
+		p += sprintf(p, "MHz x2 - Bricked");
+	}
 	return p - page;
 }
 
