@@ -54,6 +54,8 @@ static int override_cpu;
 
 /* start cmdline_khz */
 uint32_t cmdline_maxkhz, cmdline_minkhz;
+char cmdline_gov;
+
 static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
 {
 	uint32_t check;
@@ -121,6 +123,66 @@ static int __init cpufreq_read_minkhz_cmdline(char *minkhz)
         return 1;
 }
 __setup("minkhz=", cpufreq_read_minkhz_cmdline);
+
+static int __init cpufreq_read_gov_cmdline(char *gov)
+{
+/* TODO: Find a more elegant way to search for the governor */
+	int found;
+
+	if (gov) {
+#ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE
+		if (strcmp(gov, "performance") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_POWERSAVE
+		if (strcmp(gov, "powersafe") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_USERSPACE
+		if (strcmp(gov, "userspace") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND
+		if (strcmp(gov, "ondemand") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_INTERACTIVE
+		if (strcmp(gov, "interactive") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_CONSERVATIVE
+		if (strcmp(gov, "conservative") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_LAZY
+		if (strcmp(gov, "lazy") == 0) {
+			found=1;
+		}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_LAGFREE
+		if (strcmp(gov, "lagfree") == 0) {
+			found=1;
+		}
+#endif
+		if (found == 1) {
+			cmdline_gov = *gov;
+			printk(KERN_INFO "[cmdline_gov]: Governor set to '%s'", gov);
+		} else {
+			printk(KERN_INFO "[cmdline_gov]: ERROR! Could not find governor '%s'", gov);
+		}
+	} else {
+		printk(KERN_INFO "[cmdline_gov]: No input found.");
+	}
+
+	return 1;
+}
+__setup("gov=", cpufreq_read_gov_cmdline);
 /* end cmdline_khz */
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)

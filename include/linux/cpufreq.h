@@ -25,6 +25,9 @@
 #define CPUFREQ_NAME_LEN 16
 
 
+/* cmdline_khz variables */
+extern char cmdline_gov;
+
 /*********************************************************************
  *                     CPUFREQ NOTIFIER INTERFACE                    *
  *********************************************************************/
