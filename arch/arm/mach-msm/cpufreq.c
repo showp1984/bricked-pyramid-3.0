@@ -300,8 +300,15 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	init_completion(&cpu_work->complete);
 #endif
 	/* set safe default min and max speeds */
-	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
-	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
+	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
+		policy->cpuinfo.min_freq = cmdline_minkhz;
+		policy->cpuinfo.max_freq = cmdline_maxkhz;
+	} else {
+#ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
+		policy->min = CONFIG_MSM_CPU_FREQ_MIN;
+		policy->max = CONFIG_MSM_CPU_FREQ_MAX;
+#endif
+	}
 	return 0;
 }
 
