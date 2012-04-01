@@ -847,6 +847,7 @@ static struct notifier_block __cpuinitdata acpuclock_cpu_notifier = {
 	.notifier_call = acpuclock_cpu_callback,
 };
 
+/* start cmdline_khz */
 uint32_t acpu_check_khz_value(unsigned long khz)
 {
 	struct clkctl_acpu_speed *f;
@@ -877,6 +878,7 @@ uint32_t acpu_check_khz_value(unsigned long khz)
 	return 0;
 }
 EXPORT_SYMBOL(acpu_check_khz_value);
+/* end cmdline_khz */
 
 static unsigned int __init select_freq_plan(void)
 {
