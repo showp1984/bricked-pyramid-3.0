@@ -26,6 +26,7 @@
 
 
 /* cmdline_khz variables */
+extern uint32_t cmdline_maxkhz, cmdline_minkhz;
 extern char cmdline_gov;
 
 /*********************************************************************

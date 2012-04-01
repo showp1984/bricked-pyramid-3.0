@@ -95,8 +95,6 @@ static const void * const clk_sel_addr[] = {SPSS0_CLK_SEL_ADDR,
 static const int rpm_vreg_voter[] = { RPM_VREG_VOTER1, RPM_VREG_VOTER2 };
 static struct regulator *regulator_sc[NR_CPUS];
 
-extern uint32_t cmdline_maxkhz, cmdline_minkhz;
-
 enum scplls {
 	CPU0 = 0,
 	CPU1,
