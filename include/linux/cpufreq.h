@@ -27,7 +27,7 @@
 
 /* cmdline_khz variables */
 extern uint32_t cmdline_maxkhz, cmdline_minkhz;
-extern char cmdline_gov;
+extern char cmdline_gov[16];
 
 /*********************************************************************
  *                     CPUFREQ NOTIFIER INTERFACE                    *
@@ -418,8 +418,5 @@ void cpufreq_frequency_table_put_attr(unsigned int cpu);
 #ifdef CONFIG_PERFLOCK
 extern unsigned int get_max_cpu_freq(void);
 #endif
-
-/* cmdline_khz set_cmdline_governor */
-extern int set_cmdline_governor(const char *buf);
 
 #endif /* _LINUX_CPUFREQ_H */

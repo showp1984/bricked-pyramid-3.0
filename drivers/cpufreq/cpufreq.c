@@ -947,8 +947,18 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 	/* assure that the starting sequence is run in __cpufreq_set_policy */
 	policy->governor = NULL;
 
+	/* cmdline_khz governor */
+	if ((*cmdline_gov) && (strcmp(cmdline_gov, "") != 0)) {
+		if (cpufreq_parse_governor(cmdline_gov, &new_policy.policy,
+							&new_policy.governor))
+		return -EINVAL;
+		printk(KERN_INFO "[cmdline_gov]: Governor set to '%s'", cmdline_gov);
+		strcpy(cmdline_gov, "");
+	}
+
 	/* set default policy */
 	ret = __cpufreq_set_policy(policy, &new_policy);
+	
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 
@@ -1464,48 +1474,6 @@ static struct syscore_ops cpufreq_syscore_ops = {
 	.suspend	= cpufreq_bp_suspend,
 	.resume		= cpufreq_bp_resume,
 };
-
-/**
- * cmdline_khz governor interface
- *
- * set_cmdline_governor - store policy for the specified CPU
- */
-int set_cmdline_governor(const char *buf)
-{
-	int ret, sibling;
-	char	str_governor[16];
-	struct cpufreq_policy *policy;
-	struct cpufreq_policy new_policy;
-
-	ret = sscanf(buf, "%15s", str_governor);
-	if (ret != 1)
-		return 1;
-
-	for_each_online_cpu(sibling) {
-		policy = cpufreq_cpu_get(sibling);
-		if (!policy) {
-			if (sibling == 0) {
-				return 2;
-			} else if (sibling == 1) {
-				return 3;
-			} else {
-				return 4;
-			}
-		}
-		if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-							&new_policy.governor))
-			return 5;
-
-		/* Do not use cpufreq_set_policy here or the user_policy.max
-		will be wrongly overridden */
-		ret = __cpufreq_set_policy(policy, &new_policy);
-
-		policy->user_policy.policy = policy->policy;
-		policy->user_policy.governor = policy->governor;
-	}
-
-	return 0;
-}
 
 
 /*********************************************************************
