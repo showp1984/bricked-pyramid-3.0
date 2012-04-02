@@ -951,13 +951,15 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 	/* cmdline_khz governor */
 	fgov = __find_governor(cmdline_gov);
 	if ((*cmdline_gov) && (strcmp(cmdline_gov, "") != 0) &&
-	   (strcmp(cmdline_gov, fgov->name)) == 0) {
+	   ((strcmp(cmdline_gov, fgov->name)) == 0) && (cmdline_gov_cnt != 0)) {
 		if (cpufreq_parse_governor(cmdline_gov, &new_policy.policy,
 							&new_policy.governor))
 		return -EINVAL;
 		printk(KERN_INFO "[cmdline_gov]: Governor set to '%s'", cmdline_gov);
+		cmdline_gov_cnt--;
 	} else {
-		printk(KERN_INFO "[cmdline_gov]: ERROR! Could not set governor '%s'", cmdline_gov);
+		if (cmdline_gov_cnt != 0)
+			printk(KERN_INFO "[cmdline_gov]: ERROR! Could not set governor '%s'", cmdline_gov);
 	}
 
 	/* set default policy */
