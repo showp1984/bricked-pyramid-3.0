@@ -419,4 +419,7 @@ void cpufreq_frequency_table_put_attr(unsigned int cpu);
 extern unsigned int get_max_cpu_freq(void);
 #endif
 
+/* cmdline_khz set_cmdline_governor */
+extern int set_cmdline_governor(const char *buf);
+
 #endif /* _LINUX_CPUFREQ_H */
