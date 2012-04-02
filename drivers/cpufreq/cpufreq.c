@@ -895,6 +895,7 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 				     struct sys_device *sys_dev)
 {
 	struct cpufreq_policy new_policy;
+	struct cpufreq_governor *fgov;
 	struct freq_attr **drv_attr;
 	unsigned long flags;
 	int ret = 0;
@@ -948,11 +949,15 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 	policy->governor = NULL;
 
 	/* cmdline_khz governor */
-	if ((*cmdline_gov) && (strcmp(cmdline_gov, "") != 0)) {
+	fgov = __find_governor(cmdline_gov);
+	if ((*cmdline_gov) && (strcmp(cmdline_gov, "") != 0) &&
+	   (strcmp(cmdline_gov, fgov->name)) == 0) {
 		if (cpufreq_parse_governor(cmdline_gov, &new_policy.policy,
 							&new_policy.governor))
 		return -EINVAL;
 		printk(KERN_INFO "[cmdline_gov]: Governor set to '%s'", cmdline_gov);
+	} else {
+		printk(KERN_INFO "[cmdline_gov]: ERROR! Could not set governor '%s'", cmdline_gov);
 	}
 
 	/* set default policy */
