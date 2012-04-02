@@ -953,7 +953,6 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 							&new_policy.governor))
 		return -EINVAL;
 		printk(KERN_INFO "[cmdline_gov]: Governor set to '%s'", cmdline_gov);
-		strcpy(cmdline_gov, "");
 	}
 
 	/* set default policy */
