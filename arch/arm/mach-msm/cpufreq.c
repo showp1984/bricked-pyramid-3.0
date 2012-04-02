@@ -69,8 +69,8 @@ static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
 	err = strict_strtoul(maxkhz, 0, &ui_khz);
 	if (err) {
 		cmdline_maxkhz = CONFIG_MSM_CPU_FREQ_MAX;
-		printk(KERN_INFO "[cmdline]: ERROR while converting! using default value!");
-		printk(KERN_INFO "[cmdline]: maxkhz='%i'\n", cmdline_maxkhz);
+		printk(KERN_INFO "[cmdline_khz_max]: ERROR while converting! using default value!");
+		printk(KERN_INFO "[cmdline_khz_max]: maxkhz='%i'\n", cmdline_maxkhz);
 		return 1;
 	}
 
@@ -78,17 +78,17 @@ static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
 
 	if (check == 1) {
 		cmdline_maxkhz = ui_khz;
-		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+		printk(KERN_INFO "[cmdline_khz_max]: maxkhz='%u'\n", cmdline_maxkhz);
 	}
 	if (check == 0) {
 		cmdline_maxkhz = CONFIG_MSM_CPU_FREQ_MAX;
-		printk(KERN_INFO "[cmdline]: ERROR! using default value!");
-		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+		printk(KERN_INFO "[cmdline_khz_max]: ERROR! using default value!");
+		printk(KERN_INFO "[cmdline_khz_max]: maxkhz='%u'\n", cmdline_maxkhz);
 	}
 	if (check > 1) {
 		cmdline_maxkhz = check;
-		printk(KERN_INFO "[cmdline]: AUTOCORRECT! Could not find entered value in the acpu table!");
-		printk(KERN_INFO "[cmdline]: maxkhz='%u'\n", cmdline_maxkhz);
+		printk(KERN_INFO "[cmdline_khz_max]: AUTOCORRECT! Could not find entered value in the acpu table!");
+		printk(KERN_INFO "[cmdline_khz_max]: maxkhz='%u'\n", cmdline_maxkhz);
 	}
         return 1;
 }
@@ -103,8 +103,8 @@ static int __init cpufreq_read_minkhz_cmdline(char *minkhz)
 	err = strict_strtoul(minkhz, 0, &ui_khz);
 	if (err) {
 		cmdline_minkhz = CONFIG_MSM_CPU_FREQ_MIN;
-		printk(KERN_INFO "[cmdline]: ERROR while converting! using default value!");
-		printk(KERN_INFO "[cmdline]: minkhz='%i'\n", cmdline_minkhz);
+		printk(KERN_INFO "[cmdline_khz_min]: ERROR while converting! using default value!");
+		printk(KERN_INFO "[cmdline_khz_min]: minkhz='%i'\n", cmdline_minkhz);
 		return 1;
 	}
 
@@ -112,17 +112,17 @@ static int __init cpufreq_read_minkhz_cmdline(char *minkhz)
 
 	if (check == 1) {
 		cmdline_minkhz = ui_khz;
-		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+		printk(KERN_INFO "[cmdline_khz_min]: minkhz='%u'\n", cmdline_minkhz);
 	}
 	if (check == 0) {
 		cmdline_minkhz = CONFIG_MSM_CPU_FREQ_MIN;
-		printk(KERN_INFO "[cmdline]: ERROR! using default value!");
-		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+		printk(KERN_INFO "[cmdline_khz_min]: ERROR! using default value!");
+		printk(KERN_INFO "[cmdline_khz_min]: minkhz='%u'\n", cmdline_minkhz);
 	}
 	if (check > 1) {
 		cmdline_minkhz = check;
-		printk(KERN_INFO "[cmdline]: AUTOCORRECT! Could not find entered value in the acpu table!");
-		printk(KERN_INFO "[cmdline]: minkhz='%u'\n", cmdline_minkhz);
+		printk(KERN_INFO "[cmdline_khz_min]: AUTOCORRECT! Could not find entered value in the acpu table!");
+		printk(KERN_INFO "[cmdline_khz_min]: minkhz='%u'\n", cmdline_minkhz);
 	}
         return 1;
 }
