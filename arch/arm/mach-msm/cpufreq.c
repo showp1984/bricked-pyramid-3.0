@@ -52,9 +52,13 @@ static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
 static int override_cpu;
 
-/* start cmdline_khz */
-uint32_t cmdline_maxkhz, cmdline_minkhz;
-char cmdline_gov[16];
+/*
+ * start cmdline_khz
+ */
+
+/* to be safe, fill vars with defaults */
+uint32_t cmdline_maxkhz = 1566000, cmdline_minkhz = 192000;
+char cmdline_gov[16] = "ondemand";
 
 static int __init cpufreq_read_maxkhz_cmdline(char *maxkhz)
 {
