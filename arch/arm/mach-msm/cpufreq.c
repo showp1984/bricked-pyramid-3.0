@@ -227,6 +227,7 @@ static void msm_cpufreq_early_suspend(struct early_suspend *h)
 		if (cmdline_maxscroff) {
 			curfreq = acpuclk_get_rate(cpu);
 			if (curfreq > cmdline_maxscroff) {
+				printk(KERN_INFO "[cmdline_maxscroff]: Setting maxscroff (%u) limit\n", cmdline_maxscroff);
 				acpuclk_set_rate(cpu, cmdline_maxscroff, SETRATE_CPUFREQ);
 			}
 		}
@@ -249,6 +250,7 @@ static void msm_cpufreq_late_resume(struct early_suspend *h)
 			cpu_work = &per_cpu(cpufreq_work, cpu);
 			curfreq = acpuclk_get_rate(cpu);
 			if (curfreq != cpu_work->frequency) {
+				printk(KERN_INFO "[cmdline_maxscroff]: Removing maxscroff (%u) limit\n", cmdline_maxscroff);
 				acpuclk_set_rate(cpu, cpu_work->frequency, SETRATE_CPUFREQ);
 			}
 		}
