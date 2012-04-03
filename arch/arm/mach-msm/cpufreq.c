@@ -60,6 +60,8 @@ static int override_cpu;
 uint32_t cmdline_maxkhz = 1566000, cmdline_minkhz = 192000;
 char cmdline_gov[16] = "ondemand";
 uint32_t cmdline_maxscroff = 432000;
+bool cmdline_scroff = false;
+
 /* only override the governor 2 times, when
  * initially bringing up cpufreq on the cpus */
 int cmdline_gov_cnt = 2;
