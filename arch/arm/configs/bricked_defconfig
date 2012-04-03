@@ -1230,7 +1230,7 @@ CONFIG_DUMMY=y
 # CONFIG_BONDING is not set
 # CONFIG_MACVLAN is not set
 # CONFIG_EQUALIZER is not set
-CONFIG_TUN=y
+CONFIG_TUN=m
 # CONFIG_VETH is not set
 # CONFIG_MII is not set
 # CONFIG_PHYLIB is not set
@@ -2574,7 +2574,7 @@ CONFIG_NETWORK_FILESYSTEMS=y
 # CONFIG_NFS_FS is not set
 # CONFIG_NFSD is not set
 # CONFIG_CEPH_FS is not set
-CONFIG_CIFS=y
+CONFIG_CIFS=m
 # CONFIG_CIFS_STATS is not set
 # CONFIG_CIFS_WEAK_PW_HASH is not set
 # CONFIG_CIFS_XATTR is not set
