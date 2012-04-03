@@ -219,16 +219,15 @@ static void msm_cpufreq_early_suspend(struct early_suspend *h)
 	uint32_t curfreq;
 	int cpu;
 
-	if (cmdline_maxscroff)
-		cmdline_scroff = true;
-
 	for_each_possible_cpu(cpu) {
 		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
 		if (cmdline_maxscroff) {
+			cmdline_scroff = true;
 			curfreq = acpuclk_get_rate(cpu);
 			if (curfreq > cmdline_maxscroff) {
-				printk(KERN_INFO "[cmdline_maxscroff]: Setting maxscroff (%u) limit\n", cmdline_maxscroff);
 				acpuclk_set_rate(cpu, cmdline_maxscroff, SETRATE_CPUFREQ);
+				curfreq = acpuclk_get_rate(cpu);
+				printk(KERN_INFO "[cmdline_maxscroff]: Limited freq to '%u'\n", curfreq);
 			}
 		}
 		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
@@ -241,17 +240,16 @@ static void msm_cpufreq_late_resume(struct early_suspend *h)
 	int cpu;
 	struct cpufreq_work_struct *cpu_work;
 
-	if (cmdline_scroff == true)
-		cmdline_scroff = false;
-
 	for_each_possible_cpu(cpu) {
 		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
 		if (cmdline_scroff == true) {
+			cmdline_scroff = false;
 			cpu_work = &per_cpu(cpufreq_work, cpu);
 			curfreq = acpuclk_get_rate(cpu);
 			if (curfreq != cpu_work->frequency) {
-				printk(KERN_INFO "[cmdline_maxscroff]: Removing maxscroff (%u) limit\n", cmdline_maxscroff);
 				acpuclk_set_rate(cpu, cpu_work->frequency, SETRATE_CPUFREQ);
+				curfreq = acpuclk_get_rate(cpu);
+				printk(KERN_INFO "[cmdline_maxscroff]: Unlocking freq to '%u'\n", curfreq);
 			}
 		}
 		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
