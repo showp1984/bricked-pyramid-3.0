@@ -515,6 +515,9 @@ static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
 		goto out;
 	}
 
+	if ((cmdline_scroff == true) && (rate > cmdline_maxscroff))
+		rate = cmdline_maxscroff;
+
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
 		mutex_lock(&drv_state.lock);
 
