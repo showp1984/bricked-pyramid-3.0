@@ -214,6 +214,54 @@ static void set_cpu_work(struct work_struct *work)
 }
 #endif
 
+static void msm_cpufreq_early_suspend(struct early_suspend *h)
+{
+	uint32_t curfreq;
+	int cpu;
+
+	if (cmdline_maxscroff)
+		cmdline_scroff = true;
+
+	for_each_possible_cpu(cpu) {
+		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
+		if (cmdline_maxscroff) {
+			curfreq = acpuclk_get_rate(cpu);
+			if (curfreq > cmdline_maxscroff) {
+				acpuclk_set_rate(cpu, cmdline_maxscroff, SETRATE_CPUFREQ);
+			}
+		}
+		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
+	}
+}
+
+static void msm_cpufreq_late_resume(struct early_suspend *h)
+{
+	uint32_t curfreq;
+	int cpu;
+	struct cpufreq_work_struct *cpu_work;
+
+	if (cmdline_scroff == true)
+		cmdline_scroff = false;
+
+	for_each_possible_cpu(cpu) {
+		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
+		if (cmdline_scroff == true) {
+			cpu_work = &per_cpu(cpufreq_work, cpu);
+			curfreq = acpuclk_get_rate(cpu);
+			if (curfreq != cpu_work->frequency) {
+				acpuclk_set_rate(cpu, cpu_work->frequency, SETRATE_CPUFREQ);
+			}
+		}
+		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
+	}
+}
+
+static struct early_suspend msm_cpufreq_early_suspend_handler = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
+	.suspend = msm_cpufreq_early_suspend,
+	.resume = msm_cpufreq_late_resume,
+};
+
 static int msm_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
 				unsigned int relation)
@@ -468,6 +516,7 @@ static int __init msm_cpufreq_register(void)
 #endif
 
 	register_pm_notifier(&msm_cpufreq_pm_notifier);
+	register_early_suspend(&msm_cpufreq_early_suspend_handler);
 	return cpufreq_register_driver(&msm_cpufreq_driver);
 }
 
