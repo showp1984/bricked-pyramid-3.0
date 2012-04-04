@@ -52,6 +52,7 @@ static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
 static int override_cpu;
 
+#ifdef CONFIG_CMDLINE_OPTIONS
 /*
  * start cmdline_khz
  */
@@ -180,6 +181,7 @@ static int __init cpufreq_read_maxscroff_cmdline(char *maxscroff)
 }
 __setup("maxscroff=", cpufreq_read_maxscroff_cmdline);
 /* end cmdline_khz */
+#endif
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 {
@@ -214,6 +216,7 @@ static void set_cpu_work(struct work_struct *work)
 }
 #endif
 
+#ifdef CONFIG_CMDLINE_OPTIONS
 static void msm_cpufreq_early_suspend(struct early_suspend *h)
 {
 	uint32_t curfreq;
@@ -261,6 +264,7 @@ static struct early_suspend msm_cpufreq_early_suspend_handler = {
 	.suspend = msm_cpufreq_early_suspend,
 	.resume = msm_cpufreq_late_resume,
 };
+#endif
 
 static int msm_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
@@ -357,25 +361,33 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	if (table == NULL)
 		return -ENODEV;
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {
+#ifdef CONFIG_CMDLINE_OPTIONS
 		if ((cmdline_maxkhz) && (cmdline_minkhz)) {
 			policy->cpuinfo.min_freq = cmdline_minkhz;
 			policy->cpuinfo.max_freq = cmdline_maxkhz;
 		} else {
+#endif
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->cpuinfo.min_freq = CONFIG_MSM_CPU_FREQ_MIN;
 		policy->cpuinfo.max_freq = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
+#ifdef CONFIG_CMDLINE_OPTIONS
 		}
+#endif
 	}
+#ifdef CONFIG_CMDLINE_OPTIONS
 	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
 		policy->min = cmdline_minkhz;
 		policy->max = cmdline_maxkhz;
 	} else {
+#endif
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 		policy->max = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
+#ifdef CONFIG_CMDLINE_OPTIONS
 	}
+#endif
 
 	cur_freq = acpuclk_get_rate(policy->cpu);
 	if (cpufreq_frequency_table_target(policy, table, cur_freq,
@@ -408,15 +420,19 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	init_completion(&cpu_work->complete);
 #endif
 	/* set safe default min and max speeds */
+#ifdef CONFIG_CMDLINE_OPTIONS
 	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
 		policy->min  = cmdline_minkhz;
 		policy->max = cmdline_maxkhz;
 	} else {
+#endif
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 		policy->max = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
+#ifdef CONFIG_CMDLINE_OPTIONS
 	}
+#endif
 	return 0;
 }
 
@@ -516,7 +532,9 @@ static int __init msm_cpufreq_register(void)
 #endif
 
 	register_pm_notifier(&msm_cpufreq_pm_notifier);
+#ifdef CONFIG_CMDLINE_OPTIONS
 	register_early_suspend(&msm_cpufreq_early_suspend_handler);
+#endif
 	return cpufreq_register_driver(&msm_cpufreq_driver);
 }
 
