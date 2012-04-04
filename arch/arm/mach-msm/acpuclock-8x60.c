@@ -515,8 +515,10 @@ static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
 		goto out;
 	}
 
+#ifdef CONFIG_CMDLINE_OPTIONS
 	if ((cmdline_scroff == true) && (rate > cmdline_maxscroff))
 		rate = cmdline_maxscroff;
+#endif
 
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
 		mutex_lock(&drv_state.lock);
@@ -848,6 +850,7 @@ static struct notifier_block __cpuinitdata acpuclock_cpu_notifier = {
 	.notifier_call = acpuclock_cpu_callback,
 };
 
+#ifdef CONFIG_CMDLINE_OPTIONS
 /* start cmdline_khz */
 uint32_t acpu_check_khz_value(unsigned long khz)
 {
@@ -880,6 +883,7 @@ uint32_t acpu_check_khz_value(unsigned long khz)
 }
 EXPORT_SYMBOL(acpu_check_khz_value);
 /* end cmdline_khz */
+#endif
 
 static unsigned int __init select_freq_plan(void)
 {
@@ -913,13 +917,17 @@ int processor_name_read_proc(char *page, char **start, off_t off,
 			   int count, int *eof, void *data)
 {
 	char *p = page;
+#ifdef CONFIG_CMDLINE_OPTIONS
 	if (cmdline_maxkhz) {
 		p += sprintf(p, "%u", (cmdline_maxkhz/1000));
 		p += sprintf(p, "MHz x2 - Bricked");
 	} else {
+#endif
 		p += sprintf(p, "%u", (CONFIG_MSM_CPU_FREQ_MAX/1000));
 		p += sprintf(p, "MHz x2 - Bricked");
+#ifdef CONFIG_CMDLINE_OPTIONS
 	}
+#endif
 	return p - page;
 }
 
@@ -942,10 +950,12 @@ static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 	bus_init();
 
 	/* Improve boot time by ramping up CPUs immediately. */
+#ifdef CONFIG_CMDLINE_OPTIONS
 	if ((cmdline_maxkhz) && (cmdline_minkhz)) {
 		for_each_online_cpu(cpu)
 			acpuclk_8x60_set_rate(cpu, cmdline_maxkhz, SETRATE_INIT);
 	} else {
+#endif
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		for_each_online_cpu(cpu)
 			acpuclk_8x60_set_rate(cpu, CONFIG_MSM_CPU_FREQ_MAX, SETRATE_INIT);
@@ -953,7 +963,9 @@ static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 		for_each_online_cpu(cpu)
 			acpuclk_8x60_set_rate(cpu, 1188000, SETRATE_INIT);
 #endif
+#ifdef CONFIG_CMDLINE_OPTIONS
 	}
+#endif
 
 	acpuclk_register(&acpuclk_8x60_data);
 	cpufreq_table_init();
