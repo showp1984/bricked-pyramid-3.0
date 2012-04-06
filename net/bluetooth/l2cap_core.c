@@ -7464,10 +7464,10 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		BT_DBG("sk->scid %d", l2cap_pi(sk)->scid);
 
 		if (l2cap_pi(sk)->scid == L2CAP_CID_LE_DATA) {
-			if (!status && encrypt)
+			if (!status && encrypt) {
 				l2cap_pi(sk)->sec_level = hcon->sec_level;
-
-			l2cap_chan_ready(sk);
+				l2cap_chan_ready(sk);
+			}
 
 			smp = 1;
 			bh_unlock_sock(sk);
