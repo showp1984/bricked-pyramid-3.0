@@ -89,7 +89,7 @@ static int l2cap_answer_move_poll(struct sock *sk);
 static int l2cap_create_cfm(struct hci_chan *chan, u8 status);
 static int l2cap_deaggregate(struct hci_chan *chan, struct l2cap_pinfo *pi);
 static void l2cap_chan_ready(struct sock *sk);
-static void l2cap_conn_del(struct hci_conn *hcon, int err);
+static void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process);
 
 /* ---- L2CAP channels ---- */
 static struct sock *__l2cap_get_chan_by_dcid(struct l2cap_chan_list *l, u16 cid)
@@ -1135,7 +1135,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 	return conn;
 }
 
-static void l2cap_conn_del(struct hci_conn *hcon, int err)
+static void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct sock *sk;
@@ -1156,9 +1156,15 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		BT_DBG("ampcon %p", l2cap_pi(sk)->ampcon);
 		if ((conn->hcon == hcon) || (l2cap_pi(sk)->ampcon == hcon)) {
 			next = l2cap_pi(sk)->next_c;
-			bh_lock_sock(sk);
+			if (is_process)
+				lock_sock(sk);
+			else
+				bh_lock_sock(sk);
 			l2cap_chan_del(sk, err);
-			bh_unlock_sock(sk);
+			if (is_process)
+				release_sock(sk);
+			else
+				bh_unlock_sock(sk);
 			l2cap_sock_kill(sk);
 			sk = next;
 		} else
@@ -7207,7 +7213,7 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	case L2CAP_CID_SMP:
 		if (smp_sig_channel(conn, skb))
-			l2cap_conn_del(conn->hcon, EACCES);
+			l2cap_conn_del(conn->hcon, EACCES, 0);
 		break;
 
 	default:
@@ -7282,7 +7288,7 @@ static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 		if (conn)
 			l2cap_conn_ready(conn);
 	} else
-		l2cap_conn_del(hcon, bt_to_errno(status));
+		l2cap_conn_del(hcon, bt_to_errno(status), 0);
 
 	return 0;
 }
@@ -7299,14 +7305,14 @@ static int l2cap_disconn_ind(struct hci_conn *hcon)
 	return conn->disc_reason;
 }
 
-static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
+static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason, u8 is_process)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	if (!(hcon->type == ACL_LINK || hcon->type == LE_LINK))
 		return -EINVAL;
 
-	l2cap_conn_del(hcon, bt_to_errno(reason));
+	l2cap_conn_del(hcon, bt_to_errno(reason), is_process);
 
 	return 0;
 }
