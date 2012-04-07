@@ -624,15 +624,6 @@ u32 res_trk_get_firmware_addr(struct ddl_buf_addr *firm_addr)
 	return 0;
 }
 
-int res_trk_check_for_sec_session(void)
-{
-	int rc;
-	mutex_lock(&resource_context.secure_lock);
-	rc = resource_context.secure_session;
-	mutex_unlock(&resource_context.secure_lock);
-	return rc;
-}
-
 int res_trk_get_mem_type(void)
 {
 	int mem_type = -1;
@@ -742,37 +733,43 @@ int res_trk_disable_iommu_clocks(void)
 	return 0;
 }
 
+int res_trk_check_for_sec_session()
+{
+	int rc;
+	mutex_lock(&resource_context.secure_lock);
+	rc = (resource_context.secure_session) ? -EBUSY : 0;
+	mutex_unlock(&resource_context.secure_lock);
+	return rc;
+}
+
 void res_trk_secure_unset(void)
 {
 	mutex_lock(&resource_context.secure_lock);
-	resource_context.secure_session--;
+	resource_context.secure_session = 0;
 	mutex_unlock(&resource_context.secure_lock);
 }
 
 void res_trk_secure_set(void)
 {
 	mutex_lock(&resource_context.secure_lock);
-	resource_context.secure_session++;
+	resource_context.secure_session = 1;
 	mutex_unlock(&resource_context.secure_lock);
 }
 
 int res_trk_open_secure_session()
 {
 	int rc;
+	mutex_lock(&resource_context.secure_lock);
 
-	if (res_trk_check_for_sec_session() == 1) {
-		mutex_lock(&resource_context.secure_lock);
-		pr_err("Securing...\n");
-		rc = res_trk_enable_iommu_clocks();
-		if (rc) {
-			pr_err("IOMMU clock enabled failed while open");
-			goto error_open;
-		}
-		msm_ion_secure_heap(ION_HEAP(resource_context.memtype));
-		msm_ion_secure_heap(ION_HEAP(resource_context.cmd_mem_type));
-		res_trk_disable_iommu_clocks();
-		mutex_unlock(&resource_context.secure_lock);
+	rc = res_trk_enable_iommu_clocks();
+	if (rc) {
+		pr_err("IOMMU clock enabled failed while open");
+		goto error_open;
 	}
+	msm_ion_secure_heap(ION_HEAP(resource_context.memtype));
+	msm_ion_secure_heap(ION_HEAP(resource_context.cmd_mem_type));
+	res_trk_disable_iommu_clocks();
+	mutex_unlock(&resource_context.secure_lock);
 	return 0;
 error_open:
 	mutex_unlock(&resource_context.secure_lock);
@@ -782,19 +779,17 @@ error_open:
 int res_trk_close_secure_session()
 {
 	int rc;
-	if (res_trk_check_for_sec_session() == 1) {
-		pr_err("Unsecuring....\n");
-		mutex_lock(&resource_context.secure_lock);
-		rc = res_trk_enable_iommu_clocks();
-		if (rc) {
-			pr_err("IOMMU clock enabled failed while close");
-			goto error_close;
-		}
-		msm_ion_unsecure_heap(ION_HEAP(resource_context.memtype));
-		msm_ion_unsecure_heap(ION_HEAP(resource_context.cmd_mem_type));
-		res_trk_disable_iommu_clocks();
-		mutex_unlock(&resource_context.secure_lock);
+	mutex_lock(&resource_context.secure_lock);
+	rc = res_trk_enable_iommu_clocks();
+	if (rc) {
+		pr_err("IOMMU clock enabled failed while close");
+		goto error_close;
 	}
+	msm_ion_unsecure_heap(ION_HEAP(resource_context.memtype));
+	msm_ion_unsecure_heap(ION_HEAP(resource_context.cmd_mem_type));
+	res_trk_disable_iommu_clocks();
+	resource_context.secure_session = 0;
+	mutex_unlock(&resource_context.secure_lock);
 	return 0;
 error_close:
 	mutex_unlock(&resource_context.secure_lock);
