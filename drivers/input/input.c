@@ -242,7 +242,6 @@ static void input_handle_event(struct input_dev *dev,
 	case EV_KEY:
 		if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 		    !!test_bit(code, dev->key) != value) {
-
 			if (value != 2) {
 				__change_bit(code, dev->key);
 				if (value)
