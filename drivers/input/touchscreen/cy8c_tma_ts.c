@@ -88,10 +88,10 @@ static void sweep2unlock_presspwr(struct work_struct * sweep2unlock_presspwr_wor
 	printk(KERN_INFO "[sweep2unlock]: devname: %s", sweep2unlock_pwrdev->name);
 	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 1);
 	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
-	msleep(200);
+	msleep(100);
 	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 0);
 	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
-	msleep(200);
+	msleep(100);
 	mutex_unlock(&pwrlock);
 	return;
 }
@@ -925,7 +925,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						ts->sameFilter[0] = finger_data[loop_i][0];
 						ts->sameFilter[1] = finger_data[loop_i][1];
 						/* Sweep2unlock */
-						if ((ts->finger_count == 1) && (scr_suspended == false)) {
+						if ((ts->finger_count == 1) && (scr_suspended == true)) {
 							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
 								if (finger_data[loop_i][0] > 850) {
@@ -933,7 +933,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 									sweep2unlock_pwrtrigger();
 								}
 							}
-						} else if ((ts->finger_count == 1) && (scr_suspended == true)) {
+						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							prevx = 1010;
 							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
