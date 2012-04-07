@@ -1275,7 +1275,7 @@ static int __init init(void)
 	composite_driver.disconnect = android_disconnect;
 
 #ifdef CONFIG_USB_HTC_SWITCH_STUB
-	platform_driver_probe(&android_platform_driver, android_probe);
+	platform_driver_register(&android_platform_driver);
 #endif
 
 	return usb_composite_probe(&android_usb_driver, android_bind);

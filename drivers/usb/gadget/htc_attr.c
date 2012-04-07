@@ -12,10 +12,6 @@
  *
  */
 
-static struct platform_driver android_platform_driver = {
-	.driver = { .name = "android_usb" },
-};
-
 static ssize_t show_usb_function_switch(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -50,3 +46,8 @@ static int __devinit android_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+static struct platform_driver android_platform_driver = {
+	.probe = android_probe,
+	.driver = { .name = "android_usb" },
+};
