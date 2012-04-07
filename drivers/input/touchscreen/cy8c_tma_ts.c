@@ -74,7 +74,7 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 /* Sweep to unlock */
-bool lck_reverse = false, scr_suspended = false;
+bool scr_suspended = false;
 static struct input_dev * sweep2unlock_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
@@ -925,23 +925,21 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						ts->sameFilter[0] = finger_data[loop_i][0];
 						ts->sameFilter[1] = finger_data[loop_i][1];
 						/* Sweep2unlock */
-						if ((ts->finger_count == 1) && (lck_reverse == false) && (scr_suspended == false)) {
+						if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
 								if (finger_data[loop_i][0] > 850) {
 									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
 									sweep2unlock_pwrtrigger();
-									lck_reverse = true;
 								}
 							}
-						} else if ((ts->finger_count == 1) && (lck_reverse == true) && (scr_suspended == true)) {
+						} else if ((ts->finger_count == 1) && (scr_suspended == true)) {
 							prevx = 1010;
 							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
 								if (finger_data[loop_i][0] < 150) {
 									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
 									sweep2unlock_pwrtrigger();
-									lck_reverse = false;
 								}
 							}
 						}
