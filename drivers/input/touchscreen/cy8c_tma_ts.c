@@ -74,7 +74,7 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 /* Sweep to unlock */
-bool scr_suspended = false, exec_count = true;
+bool scr_suspended = false, exec_count = true, barrier[2] = {false, false};
 static struct input_dev * sweep2unlock_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
@@ -928,11 +928,13 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						if ((ts->finger_count == 1) && (scr_suspended == true)) {
 							prevx = 240;
 							nextx = 580;
-							if ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960)) {
+							if ((barrier[0] == true) || ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960))) {
 								prevx = 580;
 								nextx = 920;
-								if ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960)) {
+								barrier[0] = true;
+								if ((barrier[1] == true) || ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960))) {
 									prevx = 920;
+									barrier[1] = true;
 									if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
 										if (finger_data[loop_i][0] > 920) {
@@ -949,11 +951,13 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							prevx = 1020;
 							nextx = 720;
-							if ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960)) {
+							if ((barrier[0] == true) || ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960))) {
 								prevx = 720;
 								nextx = 380;
-								if ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960)) {
+								barrier[0] = true;
+								if ((barrier[1] == true) || ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960))) {
 									prevx = 380;
+									barrier[1] = true;
 									if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
 										if (finger_data[loop_i][0] < 380) {
@@ -1029,6 +1033,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		 */
 		if (((ts->finger_count > 0)?1:0) == 0) {
 			exec_count = true;
+			barrier[0] = false;
+			barrier[1] = false;
 		}
 	}
 
