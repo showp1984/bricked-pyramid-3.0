@@ -74,7 +74,7 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 /* Sweep to unlock */
-bool lck_reverse = false, lck_count = true;
+bool lck_reverse = false, scr_suspended = false;
 static struct input_dev * sweep2unlock_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
@@ -925,7 +925,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						ts->sameFilter[0] = finger_data[loop_i][0];
 						ts->sameFilter[1] = finger_data[loop_i][1];
 						/* Sweep2unlock */
-						if ((ts->finger_count == 1) && (lck_reverse == false)) {
+						if ((ts->finger_count == 1) && (lck_reverse == false) && (scr_suspended == false)) {
 							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
 								if (finger_data[loop_i][0] > 850) {
@@ -934,7 +934,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 									lck_reverse = true;
 								}
 							}
-						} else if ((ts->finger_count == 1) && (lck_reverse == true)) {
+						} else if ((ts->finger_count == 1) && (lck_reverse == true) && (scr_suspended == true)) {
 							prevx = 1010;
 							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = finger_data[loop_i][0];
@@ -1268,6 +1268,7 @@ static void cy8c_ts_early_suspend(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
+	scr_suspended = true;
 	//cy8c_ts_suspend(ts->client, PMSG_SUSPEND);
 }
 
@@ -1275,6 +1276,7 @@ static void cy8c_ts_late_resume(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
+	scr_suspended = false;
 	//cy8c_ts_resume(ts->client);
 }
 #endif
