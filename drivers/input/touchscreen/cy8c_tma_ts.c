@@ -745,7 +745,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 {
 	struct cy8c_ts_data *ts = ptr;
 	uint8_t buf[32] = {0}, loop_i, loop_j;
-	int prevx = 0;
+	/* Sweep2Unlock */
+	int prevx = 0, nextx = 0;
 
 	i2c_cy8c_read(ts->client, 0x00, buf, 32);
 	if (ts->debug_log_level & 0x1) {
@@ -926,13 +927,15 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						/* Sweep2unlock */
 						if ((ts->finger_count == 1) && (scr_suspended == true)) {
 							prevx = 240;
-							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
+							nextx = 580;
+							if ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = 580;
-								if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
+								nextx = 920;
+								if ((finger_data[loop_i][0] > prevx) && (finger_data[loop_i][0] < nextx) && ( finger_data[loop_i][1] > 960)) {
 									prevx = 920;
 									if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
-										if (finger_data[loop_i][0] > 92) {
+										if (finger_data[loop_i][0] > 920) {
 											if (exec_count) {
 												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
 												sweep2unlock_pwrtrigger();
@@ -945,9 +948,11 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							}
 						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							prevx = 1020;
-							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
+							nextx = 720;
+							if ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960)) {
 								prevx = 720;
-								if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
+								nextx = 380;
+								if ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960)) {
 									prevx = 380;
 									if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
