@@ -945,12 +945,12 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							prevx = 1020;
 							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
-								prevx = 680;
+								prevx = 720;
 								if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
-									prevx = 340;
+									prevx = 380;
 									if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
-										if (finger_data[loop_i][0] < 340) {
+										if (finger_data[loop_i][0] < 380) {
 											if (exec_count) {
 												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
 												sweep2unlock_pwrtrigger();
