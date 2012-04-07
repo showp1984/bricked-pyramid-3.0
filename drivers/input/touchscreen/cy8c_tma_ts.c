@@ -74,7 +74,7 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 /* Sweep to unlock */
-bool scr_suspended = false;
+bool scr_suspended = false, exec_count = true;
 static struct input_dev * sweep2unlock_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
@@ -85,7 +85,6 @@ extern void sweep2unlock_setdev(struct input_dev * input_device) {
 EXPORT_SYMBOL(sweep2unlock_setdev);
 
 static void sweep2unlock_presspwr(struct work_struct * sweep2unlock_presspwr_work) {
-	printk(KERN_INFO "[sweep2unlock]: devname: %s", sweep2unlock_pwrdev->name);
 	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 1);
 	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
 	msleep(100);
@@ -926,20 +925,39 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						ts->sameFilter[1] = finger_data[loop_i][1];
 						/* Sweep2unlock */
 						if ((ts->finger_count == 1) && (scr_suspended == true)) {
+							prevx = 240;
 							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
-								prevx = finger_data[loop_i][0];
-								if (finger_data[loop_i][0] > 850) {
-									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
-									sweep2unlock_pwrtrigger();
+								prevx = 580;
+								if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
+									prevx = 920;
+									if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
+										prevx = finger_data[loop_i][0];
+										if (finger_data[loop_i][0] > 92) {
+											if (exec_count) {
+												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
+												sweep2unlock_pwrtrigger();
+												exec_count = false;
+											}
+										}
+									}
 								}
 							}
 						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
-							prevx = 1010;
+							prevx = 1020;
 							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
-								prevx = finger_data[loop_i][0];
-								if (finger_data[loop_i][0] < 150) {
-									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
-									sweep2unlock_pwrtrigger();
+								prevx = 680;
+								if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
+									prevx = 340;
+									if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
+										prevx = finger_data[loop_i][0];
+										if (finger_data[loop_i][0] < 340) {
+											if (exec_count) {
+												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
+												sweep2unlock_pwrtrigger();
+												exec_count = false;
+											}
+										}
+									}
 								}
 							}
 						}
@@ -999,6 +1017,12 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 	if (ts->flag_htc_event == 0) {
 		input_report_key(ts->input_dev, BTN_TOUCH, (ts->finger_count > 0)?1:0);
 		input_sync(ts->input_dev);
+		/* Sweep2Unlock
+		 * if finger released, reset count
+		 */
+		if (((ts->finger_count > 0)?1:0) == 0) {
+			exec_count = true;
+		}
 	}
 
 	return IRQ_HANDLED;
