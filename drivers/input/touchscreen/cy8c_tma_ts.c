@@ -73,6 +73,38 @@ static int cy8c_reset_baseline(void);
 
 static DEFINE_MUTEX(cy8c_mutex);
 
+/* Sweep to unlock */
+bool lck_reverse = false, lck_count = true;
+static struct input_dev * sweep2unlock_pwrdev;
+static DEFINE_MUTEX(pwrlock);
+
+extern void sweep2unlock_setdev(struct input_dev * input_device) {
+	sweep2unlock_pwrdev = input_device;
+	return;
+}
+EXPORT_SYMBOL(sweep2unlock_setdev);
+
+static void sweep2unlock_presspwr(struct work_struct * sweep2unlock_presspwr_work) {
+	printk(KERN_INFO "[sweep2unlock]: devname: %s", sweep2unlock_pwrdev->name);
+	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 1);
+	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
+	msleep(200);
+	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 0);
+	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
+	msleep(200);
+	mutex_unlock(&pwrlock);
+	return;
+}
+static DECLARE_WORK(sweep2unlock_presspwr_work, sweep2unlock_presspwr);
+
+void sweep2unlock_pwrtrigger(void) {
+	if (mutex_trylock(&pwrlock)) {
+		schedule_work(&sweep2unlock_presspwr_work);
+	}
+	return;
+}
+/* Sweep2Unlock */
+
 int i2c_cy8c_read(struct i2c_client *client, uint8_t addr, uint8_t *data, uint8_t length)
 {
 	int retry;
@@ -714,6 +746,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 {
 	struct cy8c_ts_data *ts = ptr;
 	uint8_t buf[32] = {0}, loop_i, loop_j;
+	int prevx = 0;
 
 	i2c_cy8c_read(ts->client, 0x00, buf, 32);
 	if (ts->debug_log_level & 0x1) {
@@ -891,6 +924,28 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						ts->sameFilter[2] = finger_data[loop_i][2];
 						ts->sameFilter[0] = finger_data[loop_i][0];
 						ts->sameFilter[1] = finger_data[loop_i][1];
+						/* Sweep2unlock */
+						if ((ts->finger_count == 1) && (lck_reverse == false)) {
+							if ((finger_data[loop_i][0] > prevx) && ( finger_data[loop_i][1] > 960)) {
+								prevx = finger_data[loop_i][0];
+								if (finger_data[loop_i][0] > 850) {
+									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
+									sweep2unlock_pwrtrigger();
+									lck_reverse = true;
+								}
+							}
+						} else if ((ts->finger_count == 1) && (lck_reverse == true)) {
+							prevx = 1010;
+							if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
+								prevx = finger_data[loop_i][0];
+								if (finger_data[loop_i][0] < 150) {
+									printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
+									sweep2unlock_pwrtrigger();
+									lck_reverse = false;
+								}
+							}
+						}
+						/* end Sweep2unlock */
 					}
 				} else {
 					input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE,
@@ -1139,7 +1194,7 @@ static int cy8c_ts_remove(struct i2c_client *client)
 
 	return 0;
 }
-
+#if 0
 static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
@@ -1207,20 +1262,20 @@ static int cy8c_ts_resume(struct i2c_client *client)
 
 	return 0;
 }
-
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void cy8c_ts_early_suspend(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
-	cy8c_ts_suspend(ts->client, PMSG_SUSPEND);
+	//cy8c_ts_suspend(ts->client, PMSG_SUSPEND);
 }
 
 static void cy8c_ts_late_resume(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
-	cy8c_ts_resume(ts->client);
+	//cy8c_ts_resume(ts->client);
 }
 #endif
 

@@ -17,6 +17,7 @@
 #define CY8C_I2C_H
 
 #include <linux/types.h>
+#include <linux/input.h>
 
 #define CYPRESS_TMA_NAME "CY8CTMA340"
 
@@ -42,5 +43,6 @@ struct cy8c_i2c_platform_data {
 	uint16_t filter_level[4];
 };
 
+extern void sweep2unlock_setdev(struct input_dev * input_device);
 #endif
 
