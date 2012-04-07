@@ -932,6 +932,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> ON | prevx: %i\n", prevx);
 												sweep2unlock_pwrtrigger();
 												exec_count = false;
+												scr_suspended = false;
 											}
 										}
 									}
@@ -950,6 +951,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 												printk(KERN_INFO "[sweep2unlock]: TRIGGERED! -> OFF | prevx: %i\n", prevx);
 												sweep2unlock_pwrtrigger();
 												exec_count = false;
+												scr_suspended = true;
 											}
 										}
 									}
