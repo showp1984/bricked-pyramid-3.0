@@ -2240,7 +2240,7 @@ static ssize_t pyramid_virtual_keys_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf,
-		__stringify(EV_KEY) ":" __stringify(KEY_HOME)	":50:1015:110:100"
+		__stringify(EV_KEY) ":" __stringify(KEY_HOME)	":62:1015:110:100"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":200:1015:106:100"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_BACK)   ":340:1015:120:100"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":482:1015:110:100"
