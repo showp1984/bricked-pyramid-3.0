@@ -951,13 +951,13 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							}
 						} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
 							prevx = 1020;
-							nextx = 820;
+							nextx = 680;
 							if ((barrier[0] == true) || ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960))) {
-								prevx = 820;
-								nextx = 480;
+								prevx = 680;
+								nextx = 340;
 								barrier[0] = true;
 								if ((barrier[1] == true) || ((finger_data[loop_i][0] < prevx) && (finger_data[loop_i][0] > nextx) && ( finger_data[loop_i][1] > 960))) {
-									prevx = 480;
+									prevx = 340;
 									barrier[1] = true;
 									if ((finger_data[loop_i][0] < prevx) && ( finger_data[loop_i][1] > 960)) {
 										prevx = finger_data[loop_i][0];
