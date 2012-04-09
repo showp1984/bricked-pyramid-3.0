@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/wakelock.h>
 
 #define CY8C_I2C_RETRY_TIMES 10
 
@@ -76,6 +77,7 @@ static DEFINE_MUTEX(cy8c_mutex);
 /* Sweep to unlock */
 bool scr_suspended = false, exec_count = true, barrier[2] = {false, false};
 static struct input_dev * sweep2unlock_pwrdev;
+static struct wake_lock sweep2unlock_wake_lock;
 static DEFINE_MUTEX(pwrlock);
 
 extern void sweep2unlock_setdev(struct input_dev * input_device) {
@@ -1247,6 +1249,7 @@ static int cy8c_ts_remove(struct i2c_client *client)
 static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	scr_suspended = true;
+	wake_lock(&sweep2unlock_wake_lock);
 #if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
@@ -1285,6 +1288,7 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 static int cy8c_ts_resume(struct i2c_client *client)
 {
 	scr_suspended = false;
+	wake_unlock(&sweep2unlock_wake_lock);
 #if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
@@ -1354,6 +1358,8 @@ static struct i2c_driver cy8c_ts_driver = {
 static int __devinit cy8c_ts_init(void)
 {
 	printk(KERN_INFO "%s: enter\n", __func__);
+
+	wake_lock_init(&sweep2unlock_wake_lock, WAKE_LOCK_SUSPEND, "sweep2unlock");
 
 	return i2c_add_driver(&cy8c_ts_driver);
 }
