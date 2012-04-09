@@ -118,6 +118,11 @@ config TOUCHSCREEN_CYPRESS_TMA
         depends on I2C
         default n
 
+config TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+        tristate "Sweep2Wake for Cypress TMA300 based touchscreens"
+        depends on TOUCHSCREEN_CYPRESS_TMA
+        default n
+
 config TOUCHSCREEN_COMPATIBLE_REPORT
 		bool "Touchscreen compatible repodepends on I2C"
 		default n
