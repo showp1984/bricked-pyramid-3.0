@@ -955,19 +955,19 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					if ((barrier[0] == true) ||
 					   ((finger_data[loop_i][0] > prevx) &&
 					    (finger_data[loop_i][0] < nextx) &&
-					    (finger_data[loop_i][1] > 960))) {
+					    (finger_data[loop_i][1] > 950))) {
 						prevx = 580;
 						nextx = 920;
 						barrier[0] = true;
 						if ((barrier[1] == true) ||
 						   ((finger_data[loop_i][0] > prevx) &&
 						    (finger_data[loop_i][0] < nextx) &&
-						    (finger_data[loop_i][1] > 960))) {
+						    (finger_data[loop_i][1] > 950))) {
 							prevx = 920;
 							barrier[1] = true;
 							if ((finger_data[loop_i][0] > prevx) &&
-							    (finger_data[loop_i][1] > 960)) {
-								if (finger_data[loop_i][0] > 960) {
+							    (finger_data[loop_i][1] > 950)) {
+								if (finger_data[loop_i][0] > 940) {
 									if (exec_count) {
 										printk(KERN_INFO "[sweep2wake]: ON");
 										sweep2wake_pwrtrigger();
@@ -985,18 +985,18 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					if ((barrier[0] == true) ||
 					   ((finger_data[loop_i][0] < prevx) &&
 					    (finger_data[loop_i][0] > nextx) &&
-					    ( finger_data[loop_i][1] > 960))) {
+					    ( finger_data[loop_i][1] > 950))) {
 						prevx = 680;
 						nextx = 340;
 						barrier[0] = true;
 						if ((barrier[1] == true) ||
 						   ((finger_data[loop_i][0] < prevx) &&
 						    (finger_data[loop_i][0] > nextx) &&
-						    (finger_data[loop_i][1] > 960))) {
+						    (finger_data[loop_i][1] > 950))) {
 							prevx = 340;
 							barrier[1] = true;
 							if ((finger_data[loop_i][0] < prevx) &&
-							    (finger_data[loop_i][1] > 960)) {
+							    (finger_data[loop_i][1] > 950)) {
 								if (finger_data[loop_i][0] < 200) {
 									if (exec_count) {
 										printk(KERN_INFO "[sweep2wake]: OFF");
