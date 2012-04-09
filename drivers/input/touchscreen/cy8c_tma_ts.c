@@ -1231,9 +1231,11 @@ static int cy8c_ts_remove(struct i2c_client *client)
 
 	return 0;
 }
-#if 0
+
 static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	scr_suspended = true;
+#if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
 
@@ -1264,12 +1266,14 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
 	ts->suspend = 1;
 	mutex_unlock(&cy8c_mutex);
-
+#endif
 	return 0;
 }
 
 static int cy8c_ts_resume(struct i2c_client *client)
 {
+	scr_suspended = false;
+#if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
 
@@ -1296,25 +1300,23 @@ static int cy8c_ts_resume(struct i2c_client *client)
 	ts->unlock_page = 1;
 
 	enable_irq(client->irq);
-
+#endif
 	return 0;
 }
-#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void cy8c_ts_early_suspend(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
-	scr_suspended = true;
-	//cy8c_ts_suspend(ts->client, PMSG_SUSPEND);
+	cy8c_ts_suspend(ts->client, PMSG_SUSPEND);
 }
 
 static void cy8c_ts_late_resume(struct early_suspend *h)
 {
 	struct cy8c_ts_data *ts;
 	ts = container_of(h, struct cy8c_ts_data, early_suspend);
-	scr_suspended = false;
-	//cy8c_ts_resume(ts->client);
+	cy8c_ts_resume(ts->client);
 }
 #endif
 
