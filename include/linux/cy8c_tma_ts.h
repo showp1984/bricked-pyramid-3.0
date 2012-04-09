@@ -43,8 +43,8 @@ struct cy8c_i2c_platform_data {
 	uint16_t filter_level[4];
 };
 
-/* Sweep2Unlock */
-extern void sweep2unlock_setdev(struct input_dev * input_device);
+/* Sweep2Wake */
+extern void sweep2wake_setdev(struct input_dev * input_device);
 
 #endif
 

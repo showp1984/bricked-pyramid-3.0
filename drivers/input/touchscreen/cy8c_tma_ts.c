@@ -76,35 +76,35 @@ static DEFINE_MUTEX(cy8c_mutex);
 
 /* Sweep to unlock */
 bool scr_suspended = false, exec_count = true, barrier[2] = {false, false};
-static struct input_dev * sweep2unlock_pwrdev;
-static struct wake_lock sweep2unlock_wake_lock;
+static struct input_dev * sweep2wake_pwrdev;
+static struct wake_lock sweep2wake_wake_lock;
 static DEFINE_MUTEX(pwrlock);
 
-extern void sweep2unlock_setdev(struct input_dev * input_device) {
-	sweep2unlock_pwrdev = input_device;
+extern void sweep2wake_setdev(struct input_dev * input_device) {
+	sweep2wake_pwrdev = input_device;
 	return;
 }
-EXPORT_SYMBOL(sweep2unlock_setdev);
+EXPORT_SYMBOL(sweep2wake_setdev);
 
-static void sweep2unlock_presspwr(struct work_struct * sweep2unlock_presspwr_work) {
-	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 1);
-	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
+static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
+	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
+	input_event(sweep2wake_pwrdev, EV_SYN, 0, 0);
 	msleep(50);
-	input_event(sweep2unlock_pwrdev, EV_KEY, KEY_POWER, 0);
-	input_event(sweep2unlock_pwrdev, EV_SYN, 0, 0);
+	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 0);
+	input_event(sweep2wake_pwrdev, EV_SYN, 0, 0);
 	msleep(50);
 	mutex_unlock(&pwrlock);
 	return;
 }
-static DECLARE_WORK(sweep2unlock_presspwr_work, sweep2unlock_presspwr);
+static DECLARE_WORK(sweep2wake_presspwr_work, sweep2wake_presspwr);
 
-void sweep2unlock_pwrtrigger(void) {
+void sweep2wake_pwrtrigger(void) {
 	if (mutex_trylock(&pwrlock)) {
-		schedule_work(&sweep2unlock_presspwr_work);
+		schedule_work(&sweep2wake_presspwr_work);
 	}
 	return;
 }
-/* Sweep2Unlock */
+/* Sweep2Wake */
 
 int i2c_cy8c_read(struct i2c_client *client, uint8_t addr, uint8_t *data, uint8_t length)
 {
@@ -747,7 +747,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 {
 	struct cy8c_ts_data *ts = ptr;
 	uint8_t buf[32] = {0}, loop_i, loop_j;
-	/* Sweep2Unlock */
+	/* Sweep2Wake */
 	int prevx = 0, nextx = 0;
 
 	i2c_cy8c_read(ts->client, 0x00, buf, 32);
@@ -948,7 +948,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					ts->pre_finger_data[0] = finger_data[0][0];
 					ts->pre_finger_data[1] = finger_data[0][1];
 				}
-				/* Sweep2unlock */
+				/* Sweep2Wake */
 				if ((ts->finger_count == 1) && (scr_suspended == true)) {
 					prevx = 240;
 					nextx = 580;
@@ -969,8 +969,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							    (finger_data[loop_i][1] > 960)) {
 								if (finger_data[loop_i][0] > 960) {
 									if (exec_count) {
-										printk(KERN_INFO "[sweep2unlock]: ON");
-										sweep2unlock_pwrtrigger();
+										printk(KERN_INFO "[sweep2wake]: ON");
+										sweep2wake_pwrtrigger();
 										exec_count = false;
 										scr_suspended = false;
 										break;
@@ -999,8 +999,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							    (finger_data[loop_i][1] > 960)) {
 								if (finger_data[loop_i][0] < 200) {
 									if (exec_count) {
-										printk(KERN_INFO "[sweep2unlock]: OFF");
-										sweep2unlock_pwrtrigger();
+										printk(KERN_INFO "[sweep2wake]: OFF");
+										sweep2wake_pwrtrigger();
 										exec_count = false;
 										scr_suspended = true;
 										break;
@@ -1010,7 +1010,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						}
 					}
 				}
-				/* end Sweep2unlock */
+				/* end Sweep2Wake */
 			}
 		}
 		if ((ts->unlock_page) &&
@@ -1044,8 +1044,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 	if (ts->flag_htc_event == 0) {
 		input_report_key(ts->input_dev, BTN_TOUCH, (ts->finger_count > 0)?1:0);
 		input_sync(ts->input_dev);
-		/* Sweep2Unlock
-		 * if finger released, reset count
+		/* Sweep2Wake
+		 * if finger released, reset count & barriers
 		 */
 		if (((ts->finger_count > 0)?1:0) == 0) {
 			exec_count = true;
@@ -1249,7 +1249,7 @@ static int cy8c_ts_remove(struct i2c_client *client)
 static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	scr_suspended = true;
-	wake_lock(&sweep2unlock_wake_lock);
+	wake_lock(&sweep2wake_wake_lock);
 #if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
@@ -1288,7 +1288,7 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 static int cy8c_ts_resume(struct i2c_client *client)
 {
 	scr_suspended = false;
-	wake_unlock(&sweep2unlock_wake_lock);
+	wake_unlock(&sweep2wake_wake_lock);
 #if 0
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
@@ -1359,7 +1359,7 @@ static int __devinit cy8c_ts_init(void)
 {
 	printk(KERN_INFO "%s: enter\n", __func__);
 
-	wake_lock_init(&sweep2unlock_wake_lock, WAKE_LOCK_SUSPEND, "sweep2unlock");
+	wake_lock_init(&sweep2wake_wake_lock, WAKE_LOCK_SUSPEND, "sweep2wake");
 
 	return i2c_add_driver(&cy8c_ts_driver);
 }
