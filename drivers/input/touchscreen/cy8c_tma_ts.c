@@ -777,6 +777,26 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		ts->p_finger_count = ts->finger_count;
 		ts->p_finger_id = ts->finger_id;
 		ts->finger_count = ((buf[2] & 0x0F) > 4) ? 4 : buf[2] & 0x0F;
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+		if (scr_suspended == true) {
+			if (ts->finger_count > 0) {
+				if (!wake_lock_active(&sweep2wake_wake_lock)) {
+					wake_lock(&sweep2wake_wake_lock);
+					printk(KERN_INFO "[sweep2wake]: detected irq, wakelock\n");
+				}
+			} else {
+				if (wake_lock_active(&sweep2wake_wake_lock)) {
+					wake_unlock(&sweep2wake_wake_lock);
+					printk(KERN_INFO "[sweep2wake]: finger released, release wakelock\n");
+				}
+			}
+		} else if (scr_suspended == false) {
+			if (wake_lock_active(&sweep2wake_wake_lock)) {
+				wake_unlock(&sweep2wake_wake_lock);
+				printk(KERN_INFO "[sweep2wake]: release wakelock\n");
+			}
+		}
+#endif
 		ts->finger_id = buf[8] << 8 | buf[21];
 		if (ts->debug_log_level & 0x4)
 			printk(KERN_INFO "Finger ID: %X, count: %d\n",
@@ -1047,11 +1067,15 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		input_report_key(ts->input_dev, BTN_TOUCH, (ts->finger_count > 0)?1:0);
 		input_sync(ts->input_dev);
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-		 /* if finger released, reset count & barriers */
+		 /* if finger released, reset count & barriers & wakelock */
 		if (((ts->finger_count > 0)?1:0) == 0) {
 			exec_count = true;
 			barrier[0] = false;
 			barrier[1] = false;
+			if (wake_lock_active(&sweep2wake_wake_lock)) {
+				wake_unlock(&sweep2wake_wake_lock);
+				printk(KERN_INFO "[sweep2wake]: finger released, release wakelock (reset)\n");
+			}
 		}
 #endif
 	}
@@ -1252,7 +1276,6 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	scr_suspended = true;
-	wake_lock(&sweep2wake_wake_lock);
 #else
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
@@ -1292,7 +1315,6 @@ static int cy8c_ts_resume(struct i2c_client *client)
 {
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	scr_suspended = false;
-	wake_unlock(&sweep2wake_wake_lock);
 #else
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
