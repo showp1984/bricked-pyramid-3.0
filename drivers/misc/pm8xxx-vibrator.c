@@ -161,6 +161,10 @@ static void pm8xxx_vib_enable(struct timed_output_dev *dev, int value)
 					 timed_dev);
 	unsigned long flags;
 
+	/* Sense 4 haptic feedback fix */
+	if ((value == 20) || (value == 21))
+		value = 40;
+
 	if (strcmp(current->parent->comm, "init") != 0) {
 
 		/* spin_lock_irqsave(&vib->lock, flags); */
