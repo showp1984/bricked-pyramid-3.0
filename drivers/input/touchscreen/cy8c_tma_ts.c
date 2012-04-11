@@ -971,7 +971,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 										printk(KERN_INFO "[sweep2wake]: ON");
 										sweep2wake_pwrtrigger();
 										exec_count = false;
-										scr_suspended = false;
 										break;
 									}
 								}
@@ -1002,7 +1001,6 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 										printk(KERN_INFO "[sweep2wake]: OFF");
 										sweep2wake_pwrtrigger();
 										exec_count = false;
-										scr_suspended = true;
 										break;
 									}
 								}
