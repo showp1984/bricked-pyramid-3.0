@@ -74,9 +74,27 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-bool scr_suspended = false, exec_count = true, barrier[2] = {false, false};
+bool s2w_switch = true, scr_suspended = false, exec_count = true, barrier[2] = {false, false};
 static struct input_dev * sweep2wake_pwrdev;
 static DEFINE_MUTEX(pwrlock);
+
+#ifdef CONFIG_CMDLINE_OPTIONS
+static int __init cy8c_read_s2w_cmdline(char *s2w)
+{
+	if (strcmp(s2w, "1") == 0) {
+		printk(KERN_INFO "[cmdline_s2w]: Sweep2Wake enabled.");
+		s2w_switch = true;
+	} else if (strcmp(s2w, "0") == 0) {
+		printk(KERN_INFO "[cmdline_s2w]: Sweep2Wake disabled.");
+		s2w_switch = false;
+	} else {
+		printk(KERN_INFO "[cmdline_s2w]: No valid input found. Sweep2Wake disabled.");
+		s2w_switch = false;
+	}
+	return 1;
+}
+__setup("s2w=", cy8c_read_s2w_cmdline);
+#endif
 
 extern void sweep2wake_setdev(struct input_dev * input_device) {
 	sweep2wake_pwrdev = input_device;
@@ -948,7 +966,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 				}
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 				//left->right
-				if ((ts->finger_count == 1) && (scr_suspended == true)) {
+				if ((ts->finger_count == 1) && (scr_suspended == true) && (s2w_switch == true)) {
 					prevx = 200;
 					nextx = 300;
 					if ((barrier[0] == true) ||
@@ -978,7 +996,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 						}
 					}
 				//right->left
-				} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
+				} else if ((ts->finger_count == 1) && (scr_suspended == false) && (s2w_switch == true)) {
 					prevx = 1050;
 					nextx = 680;
 					if ((barrier[0] == true) ||
@@ -1043,8 +1061,8 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 		input_report_key(ts->input_dev, BTN_TOUCH, (ts->finger_count > 0)?1:0);
 		input_sync(ts->input_dev);
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-		 /* if finger released, reset count & barriers & wakelock */
-		if (((ts->finger_count > 0)?1:0) == 0) {
+		 /* if finger released, reset count & barriers */
+		if ((((ts->finger_count > 0)?1:0) == 0) && (s2w_switch == true)) {
 			exec_count = true;
 			barrier[0] = false;
 			barrier[1] = false;
@@ -1250,8 +1268,10 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	uint8_t buf[2] = {0};
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	scr_suspended = true;
-	enable_irq_wake(client->irq);
+	if (s2w_switch == true) {
+		scr_suspended = true;
+		enable_irq_wake(client->irq);
+	}
 #endif
 #ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	disable_irq_nosync(client->irq);
@@ -1293,8 +1313,10 @@ static int cy8c_ts_resume(struct i2c_client *client)
 	uint8_t buf[2] = {0};
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	scr_suspended = false;
-	disable_irq_wake(client->irq);
+	if (s2w_switch == true) {
+		scr_suspended = false;
+		disable_irq_wake(client->irq);
+	}
 #endif
 
 	if (ts->wake)
