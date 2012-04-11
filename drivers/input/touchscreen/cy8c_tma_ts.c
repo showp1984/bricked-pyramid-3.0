@@ -765,7 +765,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 	}
 
 	if (buf[2] & 0x10)
-		printk(KERN_INFO "[TOUCH] cy8c large object detected\n");
+		printk(KERN_INFO "[TOUCH] cy8c large object detected | buf[2]: '%i'\n", buf[2]);
 	if ((buf[2] & 0x0F) >= 1) {
 		int base = 0x03;
 		int report = -1;
