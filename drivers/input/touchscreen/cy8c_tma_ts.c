@@ -947,25 +947,26 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					ts->pre_finger_data[1] = finger_data[0][1];
 				}
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+				//left->right
 				if ((ts->finger_count == 1) && (scr_suspended == true)) {
-					prevx = 240;
-					nextx = 580;
+					prevx = 200;
+					nextx = 300;
 					if ((barrier[0] == true) ||
 					   ((finger_data[loop_i][0] > prevx) &&
 					    (finger_data[loop_i][0] < nextx) &&
 					    (finger_data[loop_i][1] > 950))) {
-						prevx = 580;
-						nextx = 920;
+						prevx = 300;
+						nextx = 680;
 						barrier[0] = true;
 						if ((barrier[1] == true) ||
 						   ((finger_data[loop_i][0] > prevx) &&
 						    (finger_data[loop_i][0] < nextx) &&
 						    (finger_data[loop_i][1] > 950))) {
-							prevx = 920;
+							prevx = 680;
 							barrier[1] = true;
 							if ((finger_data[loop_i][0] > prevx) &&
 							    (finger_data[loop_i][1] > 950)) {
-								if (finger_data[loop_i][0] > 940) {
+								if (finger_data[loop_i][0] > 840) {
 									if (exec_count) {
 										printk(KERN_INFO "[sweep2wake]: ON");
 										sweep2wake_pwrtrigger();
@@ -977,8 +978,9 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							}
 						}
 					}
+				//right->left
 				} else if ((ts->finger_count == 1) && (scr_suspended == false)) {
-					prevx = 1020;
+					prevx = 1050;
 					nextx = 680;
 					if ((barrier[0] == true) ||
 					   ((finger_data[loop_i][0] < prevx) &&
@@ -995,7 +997,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 							barrier[1] = true;
 							if ((finger_data[loop_i][0] < prevx) &&
 							    (finger_data[loop_i][1] > 950)) {
-								if (finger_data[loop_i][0] < 200) {
+								if (finger_data[loop_i][0] < 250) {
 									if (exec_count) {
 										printk(KERN_INFO "[sweep2wake]: OFF");
 										sweep2wake_pwrtrigger();
