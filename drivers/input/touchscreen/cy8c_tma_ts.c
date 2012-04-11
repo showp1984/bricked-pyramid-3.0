@@ -1246,14 +1246,16 @@ static int cy8c_ts_remove(struct i2c_client *client)
 
 static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	scr_suspended = true;
-	enable_irq_wake(client->irq);
-#else
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
 
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+	scr_suspended = true;
+	enable_irq_wake(client->irq);
+#endif
+#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	disable_irq_nosync(client->irq);
+#endif
 
 	if (!ts->p_finger_count) {
 		if (ts->wake)
@@ -1276,6 +1278,7 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 			__func__);
 	if (buf[0] & 0x70)
 		i2c_cy8c_write_byte_data(ts->client, 0x00, buf[0] & 0x8F);
+#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	mutex_lock(&cy8c_mutex);
 	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
 	ts->suspend = 1;
@@ -1286,12 +1289,13 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 
 static int cy8c_ts_resume(struct i2c_client *client)
 {
+	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
+	uint8_t buf[2] = {0};
+
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	scr_suspended = false;
 	disable_irq_wake(client->irq);
-#else
-	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
-	uint8_t buf[2] = {0};
+#endif
 
 	if (ts->wake)
 		ts->wake();
@@ -1300,7 +1304,7 @@ static int cy8c_ts_resume(struct i2c_client *client)
 	if (!i2c_cy8c_read(ts->client, 0x00, buf, 2))
 		printk(KERN_INFO "%s: %x, %x\n", __func__, buf[0], buf[1]);
 	else if (ts->auto_reset && ts->reset) {
-		printk(KERN_INFO "[TP]For PVT device, auto reset for recovery.\n");
+		printk(KERN_INFO "%s: [TP]For PVT device, auto reset for recovery.\n", __func__);
 		ts->reset();
 		if (!i2c_cy8c_read(ts->client, 0x00, buf, 2))
 			printk(KERN_INFO "%s: %x, %x\n", __func__, buf[0], buf[1]);
@@ -1310,11 +1314,12 @@ static int cy8c_ts_resume(struct i2c_client *client)
 		if (cy8c_init_panel(ts) < 0)
 			printk(KERN_ERR "TOUCH_ERR: %s init failed\n",
 			__func__);
-
+#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x04);
-
+#endif
 	ts->unlock_page = 1;
 
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	enable_irq(client->irq);
 #endif
 	return 0;
