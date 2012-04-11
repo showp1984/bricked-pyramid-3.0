@@ -1275,6 +1275,10 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 #endif
 #ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	disable_irq_nosync(client->irq);
+#else
+	if (s2w_switch == false) {
+		disable_irq_nosync(client->irq);
+	}
 #endif
 
 	if (!ts->p_finger_count) {
@@ -1303,6 +1307,13 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
 	ts->suspend = 1;
 	mutex_unlock(&cy8c_mutex);
+#else
+	if (s2w_switch == false) {
+		mutex_lock(&cy8c_mutex);
+		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
+		ts->suspend = 1;
+		mutex_unlock(&cy8c_mutex);
+	}
 #endif
 	return 0;
 }
@@ -1338,11 +1349,19 @@ static int cy8c_ts_resume(struct i2c_client *client)
 			__func__);
 #ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x04);
+#else
+	if (s2w_switch == false) {
+		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x04);
+	}
 #endif
 	ts->unlock_page = 1;
 
 #ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	enable_irq(client->irq);
+#else
+	if (s2w_switch == false) {
+		enable_irq(client->irq);
+	}
 #endif
 	return 0;
 }
