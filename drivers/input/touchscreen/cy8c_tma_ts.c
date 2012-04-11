@@ -1321,7 +1321,7 @@ static int cy8c_ts_resume(struct i2c_client *client)
 #endif
 	ts->unlock_page = 1;
 
-#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	enable_irq(client->irq);
 #endif
 	return 0;
