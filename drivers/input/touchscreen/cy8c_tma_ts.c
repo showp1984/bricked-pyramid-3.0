@@ -1066,6 +1066,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 			exec_count = true;
 			barrier[0] = false;
 			barrier[1] = false;
+			cy8c_reset_baseline();
 		}
 #endif
 	}
@@ -1308,10 +1309,10 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (s2w_switch == false) {
 #endif
 		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
-		ts->suspend = 1;
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	}
 #endif
+	ts->suspend = 1;
 	mutex_unlock(&cy8c_mutex);
 	return 0;
 }
