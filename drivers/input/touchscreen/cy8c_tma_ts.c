@@ -1273,11 +1273,11 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		enable_irq_wake(client->irq);
 	}
 #endif
-#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	disable_irq_nosync(client->irq);
-#else
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == false) {
+#endif
 		disable_irq_nosync(client->irq);
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	}
 #endif
 
@@ -1302,19 +1302,17 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 			__func__);
 	if (buf[0] & 0x70)
 		i2c_cy8c_write_byte_data(ts->client, 0x00, buf[0] & 0x8F);
-#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+
 	mutex_lock(&cy8c_mutex);
-	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
-	ts->suspend = 1;
-	mutex_unlock(&cy8c_mutex);
-#else
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == false) {
-		mutex_lock(&cy8c_mutex);
+#endif
 		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
 		ts->suspend = 1;
-		mutex_unlock(&cy8c_mutex);
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	}
 #endif
+	mutex_unlock(&cy8c_mutex);
 	return 0;
 }
 
@@ -1347,20 +1345,20 @@ static int cy8c_ts_resume(struct i2c_client *client)
 		if (cy8c_init_panel(ts) < 0)
 			printk(KERN_ERR "TOUCH_ERR: %s init failed\n",
 			__func__);
-#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x04);
-#else
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == false) {
+#endif
 		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x04);
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	}
 #endif
 	ts->unlock_page = 1;
 
-#ifndef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-	enable_irq(client->irq);
-#else
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == false) {
+#endif
 		enable_irq(client->irq);
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	}
 #endif
 	return 0;
