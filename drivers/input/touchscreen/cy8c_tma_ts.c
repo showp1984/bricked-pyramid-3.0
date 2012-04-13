@@ -76,6 +76,7 @@ static DEFINE_MUTEX(cy8c_mutex);
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 bool s2w_switch = true, scr_suspended = false, exec_count = true, barrier[2] = {false, false};
 static struct input_dev * sweep2wake_pwrdev;
+static struct pm8058_led_data * sweep2wake_leddev;
 static DEFINE_MUTEX(pwrlock);
 
 #ifdef CONFIG_CMDLINE_OPTIONS
@@ -101,6 +102,12 @@ extern void sweep2wake_setdev(struct input_dev * input_device) {
 	return;
 }
 EXPORT_SYMBOL(sweep2wake_setdev);
+
+extern void sweep2wake_setleddev(struct pm8058_led_data * led_dev) {
+	sweep2wake_leddev = led_dev;
+	return;
+}
+EXPORT_SYMBOL(sweep2wake_setleddev);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
 	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
