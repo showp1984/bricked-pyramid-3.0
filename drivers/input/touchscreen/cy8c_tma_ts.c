@@ -25,6 +25,10 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+#include <linux/leds-pm8058.h>
+#endif
+
 #define CY8C_I2C_RETRY_TIMES 10
 
 struct cy8c_ts_data {
@@ -74,9 +78,10 @@ static int cy8c_reset_baseline(void);
 static DEFINE_MUTEX(cy8c_mutex);
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
-bool s2w_switch = true, scr_suspended = false, exec_count = true, barrier[2] = {false, false};
+bool s2w_switch = true, scr_suspended = false, exec_count = true;
+bool led_exec_count = false, barrier[2] = {false, false};
 static struct input_dev * sweep2wake_pwrdev;
-static struct pm8058_led_data * sweep2wake_leddev;
+static struct led_classdev * sweep2wake_leddev;
 static DEFINE_MUTEX(pwrlock);
 
 #ifdef CONFIG_CMDLINE_OPTIONS
@@ -103,7 +108,7 @@ extern void sweep2wake_setdev(struct input_dev * input_device) {
 }
 EXPORT_SYMBOL(sweep2wake_setdev);
 
-extern void sweep2wake_setleddev(struct pm8058_led_data * led_dev) {
+extern void sweep2wake_setleddev(struct led_classdev * led_dev) {
 	sweep2wake_leddev = led_dev;
 	return;
 }
@@ -980,6 +985,11 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					   ((finger_data[loop_i][0] > prevx) &&
 					    (finger_data[loop_i][0] < nextx) &&
 					    (finger_data[loop_i][1] > 950))) {
+						if (led_exec_count) {
+							pm8058_drvx_led_brightness_set(sweep2wake_leddev, 255);
+							printk(KERN_INFO "[cmdline_s2w]: activated button_backlight");
+							led_exec_count = false;
+						}
 						prevx = 300;
 						nextx = 680;
 						barrier[0] = true;
@@ -1070,7 +1080,12 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 		 /* if finger released, reset count & barriers */
 		if ((((ts->finger_count > 0)?1:0) == 0) && (s2w_switch == true)) {
+			if ((scr_suspended == true) && (led_exec_count == false)) {
+				pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
+				printk(KERN_INFO "[cmdline_s2w]: deactivated button_backlight");
+			}
 			exec_count = true;
+			led_exec_count = true;
 			barrier[0] = false;
 			barrier[1] = false;
 			cy8c_reset_baseline();
