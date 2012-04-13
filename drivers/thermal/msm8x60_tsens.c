@@ -134,6 +134,8 @@ struct tsens_tm_device {
 
 struct tsens_tm_device *tmdev;
 
+static unsigned int tsens_log_count = 0;
+
 /* Temperature on y axis and ADC-code on x-axis */
 static int tsens_tz_code_to_degC(int adc_code, int sensor_num)
 {
@@ -180,6 +182,11 @@ static void tsens8x60_get_temp(int sensor_num, unsigned long *temp)
 	code = readl_relaxed(TSENS_S0_STATUS_ADDR +
 			(sensor_num << TSENS_STATUS_ADDR_OFFSET));
 	*temp = tsens_tz_code_to_degC(code, sensor_num);
+	tsens_log_count++;
+	if ((tsens_log_count % 20) == 0) {
+		pr_warn("TSENS: Current CPU Temperature is: %lu\n", *temp);
+		tsens_log_count = 0;
+	}
 }
 
 static int tsens_tz_get_temp(struct thermal_zone_device *thermal,
@@ -187,8 +194,10 @@ static int tsens_tz_get_temp(struct thermal_zone_device *thermal,
 {
 	struct tsens_tm_device_sensor *tm_sensor = thermal->devdata;
 
-	if (!tm_sensor || tm_sensor->mode != THERMAL_DEVICE_ENABLED || !temp)
+	if (!tm_sensor || tm_sensor->mode != THERMAL_DEVICE_ENABLED || !temp) {
+		pr_err("TSENS: TZ get temp failed!\n");
 		return -EINVAL;
+	}
 
 	tsens8x60_get_temp(tm_sensor->sensor_num, temp);
 
@@ -197,8 +206,10 @@ static int tsens_tz_get_temp(struct thermal_zone_device *thermal,
 
 int tsens_get_temp(struct tsens_device *device, unsigned long *temp)
 {
-	if (!tmdev)
+	if (!tmdev) {
+		pr_err("TSENS: get temp failed!\n");
 		return -ENODEV;
+	}
 
 	tsens8x60_get_temp(device->sensor_num, temp);
 
