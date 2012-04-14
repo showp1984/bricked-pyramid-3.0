@@ -1294,6 +1294,7 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == true) {
+		//screen off, enable_irq_wake
 		scr_suspended = true;
 		enable_irq_wake(client->irq);
 	}
@@ -1345,9 +1346,22 @@ static int cy8c_ts_resume(struct i2c_client *client)
 {
 	struct cy8c_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[2] = {0};
-
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 	if (s2w_switch == true) {
+		/* HW revision fix, this is not needed for all touch controllers!
+		 *
+		 * suspend me for a short while, so that resume can wake me up the right way
+		 */
+		i2c_cy8c_read(ts->client, 0x00, buf, 2);
+		if (buf[0] & 0x70)
+			i2c_cy8c_write_byte_data(ts->client, 0x00, buf[0] & 0x8F);
+		mutex_lock(&cy8c_mutex);
+		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
+		mutex_unlock(&cy8c_mutex);
+		msleep(50);
+		buf[0] = 0;
+		buf[1] = 0;
+		//screen on, disable_irq_wake
 		scr_suspended = false;
 		disable_irq_wake(client->irq);
 	}
