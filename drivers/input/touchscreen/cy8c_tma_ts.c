@@ -1080,9 +1080,9 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 		 /* if finger released, reset count & barriers */
 		if ((((ts->finger_count > 0)?1:0) == 0) && (s2w_switch == true)) {
-			if ((scr_suspended == true) && (led_exec_count == false)) {
+			if ((scr_suspended == true) && (led_exec_count == false) && (ts->suspend == 1)) {
 				pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
-				printk(KERN_INFO "[cmdline_s2w]: deactivated button_backlight");
+				printk(KERN_INFO "[sweep2wake]: deactivated button_backlight");
 			}
 			exec_count = true;
 			led_exec_count = true;
@@ -1336,6 +1336,12 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 #endif
 	ts->suspend = 1;
 	mutex_unlock(&cy8c_mutex);
+
+	if ((scr_suspended == true)) {
+		//ensure backlight is turned off
+		pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
+		printk(KERN_INFO "[sweep2wake]: deactivated button_backlight | BACKUP");
+	}
 	return 0;
 }
 
