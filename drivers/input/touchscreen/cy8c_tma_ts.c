@@ -1367,7 +1367,7 @@ static int cy8c_ts_resume(struct i2c_client *client)
 		mutex_lock(&cy8c_mutex);
 		i2c_cy8c_write_byte_data(ts->client, 0x00, (buf[0] & 0x8F) | 0x02);
 		mutex_unlock(&cy8c_mutex);
-		msleep(50);
+		msleep(100);
 		buf[0] = 0;
 		buf[1] = 0;
 		//screen on, disable_irq_wake
