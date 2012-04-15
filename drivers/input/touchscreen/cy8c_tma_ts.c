@@ -79,7 +79,7 @@ static DEFINE_MUTEX(cy8c_mutex);
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 bool s2w_switch = true, scr_suspended = false, exec_count = true;
-bool led_exec_count = false, barrier[2] = {false, false};
+bool scr_on_touch = false, led_exec_count = false, barrier[2] = {false, false};
 static struct input_dev * sweep2wake_pwrdev;
 static struct led_classdev * sweep2wake_leddev;
 static DEFINE_MUTEX(pwrlock);
@@ -1014,6 +1014,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					}
 				//right->left
 				} else if ((ts->finger_count == 1) && (scr_suspended == false) && (s2w_switch == true)) {
+					scr_on_touch=true;
 					prevx = 1050;
 					nextx = 680;
 					if ((barrier[0] == true) ||
@@ -1080,7 +1081,11 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 		 /* if finger released, reset count & barriers */
 		if ((((ts->finger_count > 0)?1:0) == 0) && (s2w_switch == true)) {
-			if ((scr_suspended == true) && (led_exec_count == false) && (ts->suspend == 1)) {
+			if ((scr_suspended == true) &&
+			    (led_exec_count == false) &&
+			    (ts->suspend == 1) &&
+			    (scr_on_touch == false) &&
+			    (exec_count == true)) {
 				pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
 				printk(KERN_INFO "[sweep2wake]: deactivated button_backlight");
 			}
@@ -1088,6 +1093,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 			led_exec_count = true;
 			barrier[0] = false;
 			barrier[1] = false;
+			scr_on_touch = false;
 		}
 #endif
 	}
@@ -1294,6 +1300,11 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		//screen off, enable_irq_wake
 		scr_suspended = true;
 		enable_irq_wake(client->irq);
+		if (ts->suspend == 0) {
+			//ensure backlight is turned off
+			pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
+			printk(KERN_INFO "[sweep2wake]: deactivated button_backlight | suspend");
+		}
 	}
 #endif
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
@@ -1337,11 +1348,6 @@ static int cy8c_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	ts->suspend = 1;
 	mutex_unlock(&cy8c_mutex);
 
-	if ((scr_suspended == true)) {
-		//ensure backlight is turned off
-		pm8058_drvx_led_brightness_set(sweep2wake_leddev, 0);
-		printk(KERN_INFO "[sweep2wake]: deactivated button_backlight | BACKUP");
-	}
 	return 0;
 }
 
