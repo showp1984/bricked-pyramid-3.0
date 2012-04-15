@@ -985,7 +985,7 @@ static irqreturn_t cy8c_ts_irq_thread(int irq, void *ptr)
 					   ((finger_data[loop_i][0] > prevx) &&
 					    (finger_data[loop_i][0] < nextx) &&
 					    (finger_data[loop_i][1] > 950))) {
-						if (led_exec_count) {
+						if ((led_exec_count == true) && (scr_on_touch == false)) {
 							pm8058_drvx_led_brightness_set(sweep2wake_leddev, 255);
 							printk(KERN_INFO "[cmdline_s2w]: activated button_backlight");
 							led_exec_count = false;
