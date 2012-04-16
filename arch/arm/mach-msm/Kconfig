@@ -1494,6 +1494,12 @@ config MSM_DALRPC_TEST
 	help
 	  Exercises DAL RPC calls to QDSP6.
 
+config CMDLINE_OPTIONS
+	bool "Enable cmdline options command parsing"
+	default n
+	help
+	  This enables the parsing of cmdline options.
+
 if CPU_FREQ_MSM
 
 config MSM_CPU_FREQ_SET_MIN_MAX
