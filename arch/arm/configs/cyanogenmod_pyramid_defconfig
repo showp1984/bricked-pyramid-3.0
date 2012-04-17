@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.26 Kernel Configuration
+# Linux/arm 3.0.28 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1029,7 +1029,6 @@ CONFIG_BT_HCIUART_H4=y
 # CONFIG_BT_HCIVHCI is not set
 # CONFIG_BT_MRVL is not set
 # CONFIG_MSM_BT_POWER is not set
-CONFIG_BT_HID_BRCM=y
 # CONFIG_AF_RXRPC is not set
 CONFIG_FIB_RULES=y
 CONFIG_WIRELESS=y
@@ -2254,7 +2253,6 @@ CONFIG_MMC_BLOCK_MINORS=64
 CONFIG_MMC_BLOCK_DEFERRED_RESUME=y
 # CONFIG_SDIO_UART is not set
 # CONFIG_MMC_TEST is not set
-# CONFIG_MMC_TI_SDIO_ADAPT is not set
 
 #
 # MMC/SD/SDIO Host Controller Drivers
