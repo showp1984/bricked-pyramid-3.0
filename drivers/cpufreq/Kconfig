@@ -257,40 +257,6 @@ config CPU_FREQ_GOV_LAGFREE
           environment.  The frequency is gracefully increased and decreased
           rather than jumping to 100% when speed is required.
 
-config CPU_FREQ_GOV_BADASS
-	tristate "'badass' cpufreq policy governor"
-	select CPU_FREQ_TABLE
-	help
-	  'badass' - This driver adds a dynamic cpufreq policy governor.
-	  The governor does a periodic polling and
-	  changes frequency based on the CPU utilization.
-	  The support for this governor depends on CPU capability to
-	  do fast frequency switching (i.e, very low latency frequency
-	  transitions).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq_badass.
-
-	  If in doubt, say N.
-
-config CPU_FREQ_GOV_BADASS_2_PHASE
-	tristate "'2-phase' power-efficiency badass algorithm"
-	depends on CPU_FREQ_GOV_BADASS
-	help
-	  '2-phase' - This driver adds a new algo to save power
-
-config CPU_FREQ_GOV_BADASS_3_PHASE
-	tristate "'3-phase' power-efficiency badass algorithm"
-	depends on CPU_FREQ_GOV_BADASS
-	help
-	  '3-phase' - This driver adds a new algo to save power
-
-config CPU_FREQ_GOV_BADASS_GPU_CONTROL
-	tristate "'gpu_control' power-efficiency badass algorithm"
-	depends on CPU_FREQ_GOV_BADASS
-	help
-	  'gpu_control' - This driver adds a new algo to save power
-
 config LAGFREE_MAX_LOAD
 	int "Max CPU Load"
 	default 50
@@ -332,6 +298,53 @@ config LAGFREE_FREQ_STEP_UP_SLEEP_PERCENT
 	depends on CPU_FREQ_GOV_LAGFREE
 	help
 	  Frequency percent to step up while screen off.
+
+
+config CPU_FREQ_GOV_BADASS
+	tristate "'badass' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+	help
+	  'badass' - This driver adds a dynamic cpufreq policy governor.
+	  The governor does a periodic polling and
+	  changes frequency based on the CPU utilization.
+	  The support for this governor depends on CPU capability to
+	  do fast frequency switching (i.e, very low latency frequency
+	  transitions).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_badass.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_BADASS_2_PHASE
+	tristate "'2-phase' power-efficiency badass algorithm"
+	depends on CPU_FREQ_GOV_BADASS
+	help
+	  '2-phase' - This driver adds a new algo to save power
+
+config CPU_FREQ_GOV_BADASS_3_PHASE
+	tristate "'3-phase' power-efficiency badass algorithm"
+	depends on CPU_FREQ_GOV_BADASS
+	help
+	  '3-phase' - This driver adds a new algo to save power
+
+config CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	tristate "'gpu_control' power-efficiency badass algorithm"
+	depends on CPU_FREQ_GOV_BADASS
+	help
+	  'gpu_control' - This driver adds a new algo to save power
+
+config CPU_FREQ_GOV_BADASS_LOWBAT_POWERSAVE
+	tristate "'lowbat_powersave' power-efficiency badass algorithm"
+	depends on CPU_FREQ_GOV_BADASS
+	help
+	  'lowbat_powersave' - This driver adds a new algo to save power
+
+config CPU_FREQ_GOV_BADASS_ALLOW_BYPASS
+	tristate "Allows bypassing phases"
+	depends on CPU_FREQ_GOV_BADASS
+	help
+	  'lowbat_powersave' - This driver adds a bypass to the phases
 
 config CPU_FREQ_MIN_TICKS
 	int "Ticks between governor polling interval."
