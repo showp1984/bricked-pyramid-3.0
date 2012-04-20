@@ -746,8 +746,8 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 	}
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	if (counter > 0) {
-		if (counter > 10)
-			counter-=10;
+		if (counter > 14)
+			counter-=14;
 		else if (counter > 0)
 			counter--;
 		if (counter == 0) {
