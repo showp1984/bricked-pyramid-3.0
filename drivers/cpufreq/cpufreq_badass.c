@@ -129,6 +129,9 @@ static struct bds_tuners {
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	unsigned int two_phase_freq;
 #endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+	unsigned int three_phase_freq;
+#endif
 } bds_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
@@ -137,6 +140,9 @@ static struct bds_tuners {
 	.powersave_bias = 0,
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	.two_phase_freq = 0,
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+	.three_phase_freq = 0,
 #endif
 };
 
@@ -557,6 +563,14 @@ static void bds_freq_increase(struct cpufreq_policy *p, unsigned int freq)
 int set_two_phase_freq_badass(int cpufreq)
 {
 	bds_tuners_ins.two_phase_freq = cpufreq;
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+int set_three_phase_freq_badass(int cpufreq)
+{
+	bds_tuners_ins.three_phase_freq = cpufreq;
 	return 0;
 }
 #endif
