@@ -345,6 +345,7 @@ config CPU_FREQ_GOV_BADASS_3_PHASE_FREQ
 config CPU_FREQ_GOV_BADASS_GPU_CONTROL
 	tristate "'gpu_control' power-efficiency badass algorithm"
 	depends on CPU_FREQ_GOV_BADASS
+	depends on CPU_FREQ_GOV_BADASS_2_PHASE
 	help
 	  'gpu_control' - This driver adds a new algo to save power
 
