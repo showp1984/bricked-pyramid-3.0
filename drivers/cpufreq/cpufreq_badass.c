@@ -608,6 +608,7 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	static unsigned int phase = 0;
 	static unsigned int counter = 0;
+	unsigned int new_phase_max = 0;
 #endif
 
 	this_bds_info->freq_lo = 0;
@@ -717,11 +718,21 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 		}
 		if (bds_tuners_ins.two_phase_freq != 0 && phase == 0) {
 			/* idle phase */
-			bds_freq_increase(policy, bds_tuners_ins.two_phase_freq);
+			if (bds_tuners_ins.two_phase_freq > (policy->max*80/100)) {
+				new_phase_max = (policy->max*80/100);
+			} else {
+				new_phase_max = bds_tuners_ins.two_phase_freq;
+			}
+			bds_freq_increase(policy, new_phase_max);
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 		} else if (bds_tuners_ins.three_phase_freq != 0 && phase == 1) {
 			/* semi-busy phase */
-			bds_freq_increase(policy, bds_tuners_ins.three_phase_freq);
+			if (bds_tuners_ins.three_phase_freq > (policy->max*90/100)) {
+				new_phase_max = (policy->max*90/100);
+			} else {
+				new_phase_max = bds_tuners_ins.three_phase_freq;
+			}
+			bds_freq_increase(policy, new_phase_max);
 #endif
 		} else {
 			/* busy phase */
