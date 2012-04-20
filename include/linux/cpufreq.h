@@ -36,6 +36,11 @@ extern bool cmdline_scroff;
 extern uint32_t acpu_check_khz_value(unsigned long khz);
 #endif
 
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+/* Badass gpu state detection */
+extern bool gpu_busy_state;
+#endif
+
 /*********************************************************************
  *                     CPUFREQ NOTIFIER INTERFACE                    *
  *********************************************************************/

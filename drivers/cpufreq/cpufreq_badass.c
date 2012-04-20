@@ -44,12 +44,21 @@
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL		(1)
 
 /* Phase configurables */
-#define BADASS_PHASE_2_PERCENT 80
-#define BADASS_PHASE_3_PERCENT 90
-#define BADASS_MAX_IDLE_COUNTER 160
-#define BADASS_SEMI_BUSY_THRESHOLD 80
-#define BADASS_BUSY_THRESHOLD 130
-#define BADASS_DECREASE_IDLE_COUNTER 14
+#define BADASS_MAX_IDLE_COUNTER			160
+#define BADASS_PHASE_2_PERCENT			80
+#define BADASS_PHASE_3_PERCENT			90
+#define BADASS_SEMI_BUSY_THRESHOLD		80
+#define BADASS_BUSY_THRESHOLD			130
+#define BADASS_DECREASE_IDLE_COUNTER		14
+
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+bool gpu_busy_state;
+#define BADASS_GPU_MAX_IDLE_COUNTER		100
+#define BADASS_GPU_COUNTER_INCREASE		2
+#define BADASS_GPU_SEMI_BUSY_THRESHOLD		70
+#define BADASS_GPU_BUSY_THRESHOLD		90
+#define BADASS_DECREASE_GPU_IDLE_COUNTER	1
+#endif
 
 
 /*
@@ -618,6 +627,10 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 	static unsigned int phase = 0;
 	static unsigned int counter = 0;
 	unsigned int new_phase_max = 0;
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	static unsigned int gpu_busy_counter = 0;
+	static unsigned int gpu_busy_phase = 0;
+#endif
 #endif
 
 	this_bds_info->freq_lo = 0;
@@ -725,7 +738,24 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 			}
 #endif
 		}
-		if (bds_tuners_ins.two_phase_freq != 0 && phase == 0) {
+
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+		if ((gpu_busy_counter < BADASS_GPU_MAX_IDLE_COUNTER) &&
+		    (gpu_busy_state == true)) {
+			gpu_busy_counter += BADASS_GPU_COUNTER_INCREASE;
+			if (gpu_busy_counter > BADASS_GPU_SEMI_BUSY_THRESHOLD) {
+				/* change to semi-busy phase (3) */
+				gpu_busy_phase = 1;
+			}
+			if (gpu_busy_counter > BADASS_GPU_BUSY_THRESHOLD) {
+				/* change to busy phase (full) */
+				gpu_busy_phase = 2;
+			}
+		}
+printk(KERN_INFO "badass: gpu_busy_counter: '%i' | gpu_busy_phase: '%i'", gpu_busy_counter, gpu_busy_phase);
+#endif
+
+		if ((bds_tuners_ins.two_phase_freq != 0 && ((phase == 0) || (gpu_busy_phase == 0)))) {
 			/* idle phase */
 			if (bds_tuners_ins.two_phase_freq > (policy->max*BADASS_PHASE_2_PERCENT/100)) {
 				new_phase_max = (policy->max*BADASS_PHASE_2_PERCENT/100);
@@ -734,7 +764,7 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 			}
 			bds_freq_increase(policy, new_phase_max);
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
-		} else if (bds_tuners_ins.three_phase_freq != 0 && phase == 1) {
+		} else if ((bds_tuners_ins.three_phase_freq != 0 && ((phase == 1) || (gpu_busy_phase == 1)))) {
 			/* semi-busy phase */
 			if (bds_tuners_ins.three_phase_freq > (policy->max*BADASS_PHASE_3_PERCENT/100)) {
 				new_phase_max = (policy->max*BADASS_PHASE_3_PERCENT/100);
@@ -764,6 +794,18 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 			phase = 0;
 		}
 	}
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	if (gpu_busy_counter > 0) {
+		if (gpu_busy_counter > BADASS_DECREASE_GPU_IDLE_COUNTER)
+			gpu_busy_counter -= BADASS_DECREASE_GPU_IDLE_COUNTER;
+		else if (gpu_busy_counter > 0)
+			gpu_busy_counter--;
+		if (gpu_busy_counter == 0) {
+			/* change to idle phase */
+			gpu_busy_phase = 0;
+		}
+	}
+#endif
 #endif
 
 	/* Check for frequency decrease */
