@@ -138,6 +138,8 @@ static void wl_iw_protect_timerfunc(ulong data);
 
 static int iw_link_state = 0;
 
+extern int module_insert;
+
 #if defined(SOFTAP)
 #define WL_SOFTAP(x) printf x
 static struct net_device *priv_dev;
@@ -10033,6 +10035,11 @@ wl_iw_sta_restart(struct net_device *dev)
                 WL_ERROR(("%s: dev is null\n", __FUNCTION__));
                 return;
         }
+
+	if (!module_insert) {
+		WL_ERROR(("%s: module has not been inserted successfully, skip restart!\n", __FUNCTION__));
+		return;
+	}
 
         iw = *(wl_iw_t **)netdev_priv(dev);
 

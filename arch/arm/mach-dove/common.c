@@ -31,7 +31,6 @@
 #include <asm/mach/arch.h>
 #include <linux/irq.h>
 #include <plat/time.h>
-#include <plat/ehci-orion.h>
 #include <plat/common.h>
 #include "common.h"
 
@@ -75,7 +74,7 @@ void __init dove_map_io(void)
 void __init dove_ehci0_init(void)
 {
 	orion_ehci_init(&dove_mbus_dram_info,
-			DOVE_USB0_PHYS_BASE, IRQ_DOVE_USB0, EHCI_PHY_NA);
+			DOVE_USB0_PHYS_BASE, IRQ_DOVE_USB0);
 }
 
 /*****************************************************************************

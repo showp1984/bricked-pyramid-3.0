@@ -508,6 +508,9 @@ int secure_access_item(unsigned int is_write, unsigned int id, unsigned int buf_
 	ret = scm_call(SCM_SVC_OEM, TZ_HTC_SVC_ACCESS_ITEM,
 			&req, sizeof(req), NULL, 0);
 
+	/* Invalid cache for coherence */
+	scm_inv_range((unsigned long)buf, (unsigned long)buf + buf_len);
+
 	pr_info("TZ_HTC_SVC_ACCESS_ITEM id %d ret = %d\n", id, ret);
 	return ret;
 }

@@ -852,7 +852,7 @@ static u32 vcd_close_in_ready
 		rc = cctxt->clnt_state.state_table->ev_hdlr.
 			close(cctxt);
 	} else {
-		VCD_MSG_ERROR("Unsupported API in client state %d",
+		INFO("%s():Unsupported API in client state %d", __func__,
 				  cctxt->clnt_state.state);
 
 		rc = VCD_ERR_BAD_STATE;
@@ -873,7 +873,7 @@ static u32  vcd_close_in_dev_invalid(struct vcd_drv_ctxt *drv_ctxt,
 		rc = cctxt->clnt_state.state_table->
 			ev_hdlr.close(cctxt);
 	} else {
-		VCD_MSG_ERROR("Unsupported API in client state %d",
+		INFO("%s():Unsupported API in client state %d", __func__,
 					  cctxt->clnt_state.state);
 		rc = VCD_ERR_BAD_STATE;
 	}
@@ -898,7 +898,7 @@ static u32 vcd_resume_in_ready
 		rc = cctxt->clnt_state.state_table->ev_hdlr.
 			resume(cctxt);
 	} else {
-		VCD_MSG_ERROR("Unsupported API in client state %d",
+		INFO("%s():Unsupported API in client state %d", __func__,
 				  cctxt->clnt_state.state);
 
 		rc = VCD_ERR_BAD_STATE;

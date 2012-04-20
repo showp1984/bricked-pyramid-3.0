@@ -26,5 +26,15 @@
 #define DEBUG   0
 #define VIDC_ENABLE_DBGFS
 
+
+#if DEBUG
+#define DBG(x...) printk(KERN_DEBUG "[VID] " x)
+#else
+#define DBG(x...)
+#endif
+
+#define INFO(x...) printk(KERN_INFO "[VID] " x)
+#define ERR(x...) printk(KERN_ERR "[VID] " x)
+
 #define USE_RES_TRACKER
 #endif

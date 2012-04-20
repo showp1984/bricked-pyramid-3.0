@@ -86,7 +86,7 @@ struct dhd_bus *g_bus;
 static struct wifi_platform_data *wifi_control_data = NULL;
 static struct resource *wifi_irqres = NULL;
 static int module_remove = 0;
-static int module_insert = 0;
+int module_insert = 0;
 
 int wifi_get_irq_number(unsigned long *irq_flags_ptr)
 {

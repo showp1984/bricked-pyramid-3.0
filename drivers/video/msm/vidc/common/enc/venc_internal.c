@@ -33,13 +33,6 @@
 #include "venc_internal.h"
 #include "vidc_init.h"
 
-#if DEBUG
-#define DBG(x...) printk(KERN_DEBUG x)
-#else
-#define DBG(x...)
-#endif
-
-#define ERR(x...) printk(KERN_ERR x)
 static unsigned int vidc_mmu_subsystem[] = {
 	MSM_SUBSYSTEM_VIDEO};
 
@@ -1820,7 +1813,7 @@ u32 vid_enc_free_recon_buffers(struct video_client_ctx *client_ctx,
 	}
 	len = sizeof(client_ctx->recon_buffer)/
 		sizeof(struct vcd_property_enc_recon_buffer);
-	pr_err(" %s() address  %p", __func__,
+	pr_info(" %s() address  %p", __func__,
 	venc_recon->pbuffer);
 	for (i = 0; i < len; i++) {
 		if (client_ctx->recon_buffer[i].user_virtual_addr

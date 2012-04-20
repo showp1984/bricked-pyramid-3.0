@@ -365,6 +365,33 @@ static int htc_battery_set_charging(int ctl)
 	return rc;
 }
 
+struct mutex context_event_handler_lock; /* synchroniz context_event_handler */
+static int htc_batt_context_event_handler(enum batt_context_event event)
+{
+
+	mutex_lock(&context_event_handler_lock);
+	switch (event) {
+	case EVENT_TALK_START:
+		htc_batt_phone_call = 1;
+		break;
+	case EVENT_TALK_STOP:
+		htc_batt_phone_call = 0;
+		break;
+	case EVENT_NETWORK_SEARCH_START:
+		break;
+	case EVENT_NETWORK_SEARCH_STOP:
+		break;
+	default:
+		pr_warn("unsupported context event (%d)\n", event);
+		goto exit;
+	}
+	BATT_LOG("event: 0x%x", event);
+
+exit:
+	mutex_unlock(&context_event_handler_lock);
+	return 0;
+}
+
 static int htc_batt_charger_control(enum charger_control_flag control)
 {
 	char message[16] = "CHARGERSWITCH=";
@@ -947,6 +974,8 @@ static int htc_battery_probe(struct platform_device *pdev)
 	htc_battery_core_ptr->func_get_battery_info = htc_batt_get_battery_info;
 	htc_battery_core_ptr->func_charger_control = htc_batt_charger_control;
 	htc_battery_core_ptr->func_set_full_level = htc_batt_set_full_level;
+	htc_battery_core_ptr->func_context_event_handler = htc_batt_context_event_handler;
+
 	htc_battery_core_register(&pdev->dev, htc_battery_core_ptr);
 
 	htc_batt_info.device_id = pdev->id;
@@ -1065,6 +1094,7 @@ static int __init htc_battery_init(void)
 	wake_lock_init(&htc_batt_timer.battery_lock, WAKE_LOCK_SUSPEND,
 			"htc_battery_8x60");
 	mutex_init(&htc_batt_info.info_lock);
+	mutex_init(&context_event_handler_lock);
 #ifdef CONFIG_HTC_BATT_ALARM
 	mutex_init(&batt_set_alarm_lock);
 #endif

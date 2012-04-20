@@ -1575,14 +1575,14 @@ static int calculate_destination_timeout(void)
 		ts_ns = base * mult1 * mult2;
 		ret = ts_ns / 1000;
 	} else {
-		/* 4 bits  0/1 for 10/80us base, 3 bits of multiplier */
-		mmr_image = uv_read_local_mmr(UVH_LB_BAU_MISC_CONTROL);
+		/* 4 bits  0/1 for 10/80us, 3 bits of multiplier */
+		mmr_image = uv_read_local_mmr(UVH_AGING_PRESCALE_SEL);
 		mmr_image = (mmr_image & UV_SA_MASK) >> UV_SA_SHFT;
 		if (mmr_image & (1L << UV2_ACK_UNITS_SHFT))
-			base = 80;
+			mult1 = 80;
 		else
-			base = 10;
-		mult1 = mmr_image & UV2_ACK_MASK;
+			mult1 = 10;
+		base = mmr_image & UV2_ACK_MASK;
 		ret = mult1 * base;
 	}
 	return ret;
@@ -1820,8 +1820,6 @@ static int __init uv_bau_init(void)
 			uv_base_pnode = uv_blade_to_pnode(uvhub);
 	}
 
-	enable_timeouts();
-
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
 		nobau = 1;
 		return 0;
@@ -1832,6 +1830,7 @@ static int __init uv_bau_init(void)
 		if (uv_blade_nr_possible_cpus(uvhub))
 			init_uvhub(uvhub, vector, uv_base_pnode);
 
+	enable_timeouts();
 	alloc_intr_gate(vector, uv_bau_message_intr1);
 
 	for_each_possible_blade(uvhub) {

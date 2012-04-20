@@ -124,33 +124,40 @@ static int pm8xxx_vib_write_u8(struct pm8xxx_vib *vib,
 	return rc;
 }
 
-static int pm8xxx_vib_set(struct pm8xxx_vib *vib, int on)
+static int pm8xxx_vib_set_on(struct pm8xxx_vib *vib)
 {
 	int rc;
 	u8 val;
 
-	if (on) {
 		val = vib->reg_vib_drv;
 		val |= ((vib->level << VIB_DRV_SEL_SHIFT) & VIB_DRV_SEL_MASK);
 		rc = pm8xxx_vib_write_u8(vib, val, VIB_DRV);
 		if (rc < 0) {
-			VIB_ERR_LOG("pm8xxx_vib_write_u8 failed, on: %d\n", on);
+			VIB_ERR_LOG("pm8xxx_vib_write_u8 failed \n");
 			return rc;
-		} else{
-			printk(KERN_INFO "[ATS][set_vibration][successful]\n");
+		}
+		printk(KERN_INFO "[ATS][set_vibration][successful]\n");
 		vib->reg_vib_drv = val;
-			}
-	} else{
+		__dump_vib_regs(vib, "vib_set_end");
+
+	return rc;
+}
+
+static int pm8xxx_vib_set_off(struct pm8xxx_vib *vib)
+{
+	int rc;
+	u8 val;
+
+
 		val = vib->reg_vib_drv;
 		val &= ~VIB_DRV_SEL_MASK;
 		rc = pm8xxx_vib_write_u8(vib, val, VIB_DRV);
 		if (rc < 0) {
-			VIB_ERR_LOG("pmic8058_vib_write_u8 failed, on: %d\n", on);
+			VIB_ERR_LOG("pmic8058_vib_write_u8 failed\n");
 			return rc;
-			}
+		}
 		vib->reg_vib_drv = val;
-	}
-	__dump_vib_regs(vib, "vib_set_end");
+		__dump_vib_regs(vib, "vib_set_end");
 
 	return rc;
 }
@@ -159,7 +166,6 @@ static void pm8xxx_vib_enable(struct timed_output_dev *dev, int value)
 {
 	struct pm8xxx_vib *vib = container_of(dev, struct pm8xxx_vib,
 					 timed_dev);
-	unsigned long flags;
 
 	/* Sense 4 haptic feedback fix */
 	if ((value == 20) || (value == 21))
@@ -170,10 +176,8 @@ static void pm8xxx_vib_enable(struct timed_output_dev *dev, int value)
 		/* spin_lock_irqsave(&vib->lock, flags); */
 
 	retry:
-		spin_lock_irqsave(&vib->lock, flags);
 
 		if (hrtimer_try_to_cancel(&vib->vib_timer) < 0) {
-			spin_unlock_irqrestore(&vib->lock, flags);
 			cpu_relax();
 			goto retry;
 		}
@@ -181,17 +185,15 @@ static void pm8xxx_vib_enable(struct timed_output_dev *dev, int value)
 						current->comm, current->parent->comm, value);
 
 		if (value == 0)
-			vib->state = 0;
+			pm8xxx_vib_set_off(vib);
 		else {
 			value = (value > vib->pdata->max_timeout_ms ?
 					 vib->pdata->max_timeout_ms : value);
-			vib->state = 1;
+			pm8xxx_vib_set_on(vib);
 			hrtimer_start(&vib->vib_timer,
 				      ktime_set(value / 1000, (value % 1000) * 1000000),
 				      HRTIMER_MODE_REL);
 		}
-		spin_unlock_irqrestore(&vib->lock, flags);
-		schedule_work(&vib->work);
 	}
 }
 
@@ -200,7 +202,7 @@ static void pm8xxx_vib_update(struct work_struct *work)
 	struct pm8xxx_vib *vib = container_of(work, struct pm8xxx_vib,
 					 work);
 
-	pm8xxx_vib_set(vib, vib->state);
+	pm8xxx_vib_set_off(vib);
 }
 
 static int pm8xxx_vib_get_time(struct timed_output_dev *dev)
@@ -221,7 +223,6 @@ static enum hrtimer_restart pm8xxx_vib_timer_func(struct hrtimer *timer)
 							 vib_timer);
 	VIB_INFO_LOG("%s\n", __func__);
 
-	vib->state = 0;
 	schedule_work(&vib->work);
 
 	return HRTIMER_NORESTART;
@@ -235,7 +236,7 @@ static int pm8xxx_vib_suspend(struct device *dev)
 	hrtimer_cancel(&vib->vib_timer);
 	cancel_work_sync(&vib->work);
 	/* turn-off vibrator */
-	pm8xxx_vib_set(vib, 0);
+	pm8xxx_vib_set_off(vib);
 
 	return 0;
 }

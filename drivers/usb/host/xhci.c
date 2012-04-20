@@ -444,11 +444,6 @@ int xhci_run(struct usb_hcd *hcd)
 
 	if (ret) {
 legacy_irq:
-		if (!pdev->irq) {
-			xhci_err(xhci, "No msi-x/msi found and "
-					"no IRQ in BIOS\n");
-			return -EINVAL;
-		}
 		/* fall back to legacy interrupt*/
 		ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
 					hcd->irq_descr, hcd);
@@ -1573,7 +1568,6 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		/* FIXME: can we allocate more resources for the HC? */
 		break;
 	case COMP_BW_ERR:
-	case COMP_2ND_BW_ERR:
 		dev_warn(&udev->dev, "Not enough bandwidth "
 				"for new device state.\n");
 		ret = -ENOSPC;
@@ -2189,7 +2183,8 @@ static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
 		if (ret < 0)
 			return ret;
 
-		max_streams = usb_ss_max_streams(&eps[i]->ss_ep_comp);
+		max_streams = USB_SS_MAX_STREAMS(
+				eps[i]->ss_ep_comp.bmAttributes);
 		if (max_streams < (*num_streams - 1)) {
 			xhci_dbg(xhci, "Ep 0x%x only supports %u stream IDs.\n",
 					eps[i]->desc.bEndpointAddress,

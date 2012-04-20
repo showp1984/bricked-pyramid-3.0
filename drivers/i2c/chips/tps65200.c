@@ -295,6 +295,9 @@ u32 htc_fake_charger_for_testing(u32 ctl)
 {
 	u32 new_ctl = POWER_SUPPLY_ENABLE_FAST_CHARGE;
 
+	if((ctl > POWER_SUPPLY_ENABLE_INTERNAL) || (ctl == POWER_SUPPLY_DISABLE_CHARGE))
+		return ctl;
+
 #if defined(CONFIG_MACH_VERDI_LTE)
 	new_ctl = POWER_SUPPLY_ENABLE_9VAC_CHARGE;
 #else

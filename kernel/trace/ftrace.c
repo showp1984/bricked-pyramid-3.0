@@ -952,7 +952,7 @@ struct ftrace_func_probe {
 };
 
 enum {
-	FTRACE_UPDATE_CALLS		= (1 << 0),
+	FTRACE_ENABLE_CALLS		= (1 << 0),
 	FTRACE_DISABLE_CALLS		= (1 << 1),
 	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
 	FTRACE_START_FUNC_RET		= (1 << 3),
@@ -1182,14 +1182,8 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	return NULL;
 }
 
-static void
-ftrace_hash_rec_disable(struct ftrace_ops *ops, int filter_hash);
-static void
-ftrace_hash_rec_enable(struct ftrace_ops *ops, int filter_hash);
-
 static int
-ftrace_hash_move(struct ftrace_ops *ops, int enable,
-		 struct ftrace_hash **dst, struct ftrace_hash *src)
+ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 {
 	struct ftrace_func_entry *entry;
 	struct hlist_node *tp, *tn;
@@ -1199,14 +1193,7 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	unsigned long key;
 	int size = src->count;
 	int bits = 0;
-	int ret;
 	int i;
-
-	/*
-	 * Remove the current set, update the hash and add
-	 * them back.
-	 */
-	ftrace_hash_rec_disable(ops, enable);
 
 	/*
 	 * If the new source is empty, just free dst and assign it
@@ -1228,10 +1215,9 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	if (bits > FTRACE_HASH_MAX_BITS)
 		bits = FTRACE_HASH_MAX_BITS;
 
-	ret = -ENOMEM;
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
-		goto out;
+		return -ENOMEM;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1250,16 +1236,7 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	rcu_assign_pointer(*dst, new_hash);
 	free_ftrace_hash_rcu(old_hash);
 
-	ret = 0;
- out:
-	/*
-	 * Enable regardless of ret:
-	 *  On success, we enable the new hash.
-	 *  On failure, we re-enable the original hash.
-	 */
-	ftrace_hash_rec_enable(ops, enable);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -1521,7 +1498,7 @@ int ftrace_text_reserved(void *start, void *end)
 
 
 static int
-__ftrace_replace_code(struct dyn_ftrace *rec, int update)
+__ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
 	unsigned long flag = 0UL;
@@ -1529,17 +1506,17 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int update)
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
 	/*
-	 * If we are updating calls:
+	 * If we are enabling tracing:
 	 *
 	 *   If the record has a ref count, then we need to enable it
 	 *   because someone is using it.
 	 *
 	 *   Otherwise we make sure its disabled.
 	 *
-	 * If we are disabling calls, then disable all records that
+	 * If we are disabling tracing, then disable all records that
 	 * are enabled.
 	 */
-	if (update && (rec->flags & ~FTRACE_FL_MASK))
+	if (enable && (rec->flags & ~FTRACE_FL_MASK))
 		flag = FTRACE_FL_ENABLED;
 
 	/* If the state of this record hasn't changed, then do nothing */
@@ -1555,7 +1532,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int update)
 	return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
-static void ftrace_replace_code(int update)
+static void ftrace_replace_code(int enable)
 {
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
@@ -1569,7 +1546,7 @@ static void ftrace_replace_code(int update)
 		if (rec->flags & FTRACE_FL_FREE)
 			continue;
 
-		failed = __ftrace_replace_code(rec, update);
+		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
 			ftrace_bug(failed, rec->ip);
 			/* Stop processing */
@@ -1619,7 +1596,7 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
-	if (*command & FTRACE_UPDATE_CALLS)
+	if (*command & FTRACE_ENABLE_CALLS)
 		ftrace_replace_code(1);
 	else if (*command & FTRACE_DISABLE_CALLS)
 		ftrace_replace_code(0);
@@ -1675,7 +1652,7 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 		return -ENODEV;
 
 	ftrace_start_up++;
-	command |= FTRACE_UPDATE_CALLS;
+	command |= FTRACE_ENABLE_CALLS;
 
 	/* ops marked global share the filter hashes */
 	if (ops->flags & FTRACE_OPS_FL_GLOBAL) {
@@ -1727,7 +1704,8 @@ static void ftrace_shutdown(struct ftrace_ops *ops, int command)
 	if (ops != &global_ops || !global_start_up)
 		ops->flags &= ~FTRACE_OPS_FL_ENABLED;
 
-	command |= FTRACE_UPDATE_CALLS;
+	if (!ftrace_start_up)
+		command |= FTRACE_DISABLE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;
@@ -1749,7 +1727,7 @@ static void ftrace_startup_sysctl(void)
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
 	if (ftrace_start_up)
-		ftrace_run_update_code(FTRACE_UPDATE_CALLS);
+		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 }
 
 static void ftrace_shutdown_sysctl(void)
@@ -2899,11 +2877,7 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		ftrace_match_records(hash, buf, len);
 
 	mutex_lock(&ftrace_lock);
-	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
-	if (!ret && ops->flags & FTRACE_OPS_FL_ENABLED
-	    && ftrace_enabled)
-		ftrace_run_update_code(FTRACE_UPDATE_CALLS);
-
+	ret = ftrace_hash_move(orig_hash, hash);
 	mutex_unlock(&ftrace_lock);
 
 	mutex_unlock(&ftrace_regex_lock);
@@ -3086,12 +3060,18 @@ ftrace_regex_release(struct inode *inode, struct file *file)
 			orig_hash = &iter->ops->notrace_hash;
 
 		mutex_lock(&ftrace_lock);
-		ret = ftrace_hash_move(iter->ops, filter_hash,
-				       orig_hash, iter->hash);
-		if (!ret && (iter->ops->flags & FTRACE_OPS_FL_ENABLED)
-		    && ftrace_enabled)
-			ftrace_run_update_code(FTRACE_UPDATE_CALLS);
-
+		/*
+		 * Remove the current set, update the hash and add
+		 * them back.
+		 */
+		ftrace_hash_rec_disable(iter->ops, filter_hash);
+		ret = ftrace_hash_move(orig_hash, iter->hash);
+		if (!ret) {
+			ftrace_hash_rec_enable(iter->ops, filter_hash);
+			if (iter->ops->flags & FTRACE_OPS_FL_ENABLED
+			    && ftrace_enabled)
+				ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+		}
 		mutex_unlock(&ftrace_lock);
 	}
 	free_ftrace_hash(iter->hash);

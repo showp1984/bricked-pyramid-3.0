@@ -317,6 +317,31 @@ static ssize_t htc_battery_charger_switch(struct device *dev,
 	return count;
 }
 
+static ssize_t htc_battery_set_phone_call(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long phone_call = 0;
+	int rc = 0;
+
+	rc = strict_strtoul(buf, 10, &phone_call);
+	if (rc)
+		return rc;
+
+	BATT_LOG("set context phone_call=%lu", phone_call);
+
+	if (!battery_core_info.func.func_context_event_handler) {
+		BATT_ERR("No context_event_notify function!");
+		return -ENOENT;
+	}
+
+	if (phone_call)
+		battery_core_info.func.func_context_event_handler(EVENT_TALK_START);
+	else
+		battery_core_info.func.func_context_event_handler(EVENT_TALK_STOP);
+
+	return count;
+}
 static struct device_attribute htc_battery_attrs[] = {
 	HTC_BATTERY_ATTR(batt_id),
 	HTC_BATTERY_ATTR(batt_vol),
@@ -341,6 +366,8 @@ static struct device_attribute htc_set_delta_attrs[] = {
 		htc_battery_charger_switch),
 	__ATTR(charger_timer, S_IWUSR | S_IWGRP, NULL,
 		htc_battery_charger_ctrl_timer),
+	__ATTR(phone_call, S_IWUSR | S_IWGRP, NULL,
+		htc_battery_set_phone_call),
 };
 
 static int htc_battery_create_attrs(struct device *dev)
@@ -721,6 +748,9 @@ int htc_battery_core_register(struct device *dev,
 	if (htc_battery->func_charger_control)
 		battery_core_info.func.func_charger_control =
 					htc_battery->func_charger_control;
+	if (htc_battery->func_context_event_handler)
+		battery_core_info.func.func_context_event_handler =
+					htc_battery->func_context_event_handler;
 
 	if (htc_battery->func_set_full_level)
 		battery_core_info.func.func_set_full_level =

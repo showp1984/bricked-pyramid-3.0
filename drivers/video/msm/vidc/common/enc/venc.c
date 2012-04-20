@@ -35,15 +35,6 @@
 
 #define VID_ENC_NAME	"msm_vidc_enc"
 
-#if DEBUG
-#define DBG(x...) printk(KERN_DEBUG "[VID] " x)
-#else
-#define DBG(x...)
-#endif
-
-#define INFO(x...) printk(KERN_INFO "[VID] " x)
-#define ERR(x...) printk(KERN_ERR "[VID] " x)
-
 static struct vid_enc_dev *vid_enc_device_p;
 static dev_t vid_enc_dev_num;
 static struct class *vid_enc_class;

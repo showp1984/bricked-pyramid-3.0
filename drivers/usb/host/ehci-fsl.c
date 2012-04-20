@@ -125,7 +125,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	 */
 	if (pdata->init && pdata->init(pdev)) {
 		retval = -ENODEV;
-		goto err4;
+		goto err3;
 	}
 
 	/* Enable USB controller, 83xx or 8536 */
