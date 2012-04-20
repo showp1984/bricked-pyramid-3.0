@@ -702,14 +702,14 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 				bds_tuners_ins.sampling_down_factor;
 		bds_freq_increase(policy, policy->max);
 #else
-		if (counter < 16) {
+		if (counter < 160) {
 			counter++;
-			if ((counter > 8) && (counter < 13)) {
+			if (counter > 80) {
 				/* change to semi-busy phase (3) */
 				phase = 1;
 			}
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
-			if ((counter > 12)) {
+			if (counter > 130) {
 				/* change to busy phase (full) */
 				phase = 2;
 			}
@@ -735,9 +735,10 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 	}
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	if (counter > 0) {
-		counter-=2;
-		if (counter < 0)
-			counter=0;
+		if (counter > 10)
+			counter-=10;
+		else if (counter > 0)
+			counter--;
 		if (counter == 0) {
 			/* change to idle phase */
 			phase = 0;
