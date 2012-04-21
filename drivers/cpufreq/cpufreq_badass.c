@@ -738,6 +738,12 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 			}
 #endif
 		}
+/*
+ * Debug output for cpu control. Still needed for finetuning.
+ *
+ *		printk(KERN_INFO "badass: cpu_phase: '%i' |	\
+ *			 busy_counter: '%i'", phase, counter);
+ */
 
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
 		if ((gpu_busy_counter < BADASS_GPU_MAX_IDLE_COUNTER) &&
@@ -755,8 +761,8 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 /*
  * Debug output for gpu control. Still needed for finetuning.
  *
- *		printk(KERN_INFO "badass: gpu_busy_phase: '%i' |
- *			 gpu_busy_counter: '%i' | busy? '%s'", gpu_busy_phase,
+ *		printk(KERN_INFO "badass: gpu_busy_phase: '%i' |			\
+ *			 gpu_busy_counter: '%i' | busy? '%s'", gpu_busy_phase,		\
  *			 gpu_busy_counter, (gpu_busy_state)?"true":"false");
  */
 #endif
