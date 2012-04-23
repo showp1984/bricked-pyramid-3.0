@@ -48,7 +48,9 @@
 #define BADASS_PHASE_2_PERCENT			80
 #define BADASS_PHASE_3_PERCENT			90
 #define BADASS_SEMI_BUSY_THRESHOLD		80
+#define BADASS_SEMI_BUSY_CLR_THRESHOLD		10
 #define BADASS_BUSY_THRESHOLD			130
+#define BADASS_BUSY_CLR_THRESHOLD		100
 #define BADASS_DECREASE_IDLE_COUNTER		14
 
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
@@ -727,12 +729,12 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 #else
 		if (counter < BADASS_MAX_IDLE_COUNTER) {
 			counter++;
-			if (counter > BADASS_SEMI_BUSY_THRESHOLD) {
+			if ((counter > BADASS_SEMI_BUSY_THRESHOLD) && (phase < 1)) {
 				/* change to semi-busy phase (3) */
 				phase = 1;
 			}
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
-			if (counter > BADASS_BUSY_THRESHOLD) {
+			if ((counter > BADASS_BUSY_THRESHOLD) && (phase < 2)) {
 				/* change to busy phase (full) */
 				phase = 2;
 			}
@@ -797,11 +799,17 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 	}
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	if (counter > 0) {
-		if (counter > BADASS_DECREASE_IDLE_COUNTER)
+		if (counter >= BADASS_DECREASE_IDLE_COUNTER)
 			counter -= BADASS_DECREASE_IDLE_COUNTER;
-		else if (counter > 0)
+		if ((counter > 0) && (counter < BADASS_DECREASE_IDLE_COUNTER))
 			counter--;
-		if (counter == 0) {
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+		if ((counter < BADASS_BUSY_CLR_THRESHOLD) && (phase > 1)) {
+			/* change to semi busy phase */
+			phase = 1;
+		}
+#endif
+		if ((counter < BADASS_SEMI_BUSY_CLR_THRESHOLD) && (phase > 0)) {
 			/* change to idle phase */
 			phase = 0;
 		}
