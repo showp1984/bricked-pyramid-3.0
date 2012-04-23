@@ -47,8 +47,8 @@
 #define BADASS_MAX_IDLE_COUNTER			160
 #define BADASS_PHASE_2_PERCENT			80
 #define BADASS_PHASE_3_PERCENT			90
-#define BADASS_SEMI_BUSY_THRESHOLD		80
-#define BADASS_SEMI_BUSY_CLR_THRESHOLD		10
+#define BADASS_SEMI_BUSY_THRESHOLD		14
+#define BADASS_SEMI_BUSY_CLR_THRESHOLD		6
 #define BADASS_BUSY_THRESHOLD			130
 #define BADASS_BUSY_CLR_THRESHOLD		100
 #define BADASS_DECREASE_IDLE_COUNTER		14
@@ -728,7 +728,10 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 		bds_freq_increase(policy, policy->max);
 #else
 		if (counter < BADASS_MAX_IDLE_COUNTER) {
-			counter++;
+			if ((counter < BADASS_SEMI_BUSY_THRESHOLD) && (phase == 0))
+				counter += 4;
+			else
+				counter++;
 			if ((counter > BADASS_SEMI_BUSY_THRESHOLD) && (phase < 1)) {
 				/* change to semi-busy phase (3) */
 				phase = 1;
