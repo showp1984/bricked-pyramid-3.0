@@ -148,9 +148,13 @@ static struct bds_tuners {
 	unsigned int io_is_busy;
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	unsigned int two_phase_freq;
+	unsigned int semi_busy_threshold;
+	unsigned int semi_busy_clr_threshold;
 #endif
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 	unsigned int three_phase_freq;
+	unsigned int busy_threshold;
+	unsigned int busy_clr_threshold;
 #endif
 } bds_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
@@ -160,9 +164,13 @@ static struct bds_tuners {
 	.powersave_bias = 0,
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	.two_phase_freq = 0,
+	.semi_busy_threshold = BADASS_SEMI_BUSY_THRESHOLD,
+	.semi_busy_clr_threshold = BADASS_SEMI_BUSY_CLR_THRESHOLD,
 #endif
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 	.three_phase_freq = 0,
+	.busy_threshold = BADASS_BUSY_THRESHOLD,
+	.busy_clr_threshold = BADASS_BUSY_CLR_THRESHOLD,
 #endif
 };
 
@@ -326,9 +334,13 @@ show_one(ignore_nice_load, ignore_nice);
 
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 show_one(two_phase_freq, two_phase_freq);
+show_one(semi_busy_threshold, semi_busy_threshold);
+show_one(semi_busy_clr_threshold, semi_busy_clr_threshold);
 #endif
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 show_one(three_phase_freq, three_phase_freq);
+show_one(busy_threshold, busy_threshold);
+show_one(busy_clr_threshold, busy_clr_threshold);
 #endif
 
 static ssize_t show_powersave_bias
@@ -553,6 +565,68 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 	return count;
 }
 
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
+static ssize_t store_semi_busy_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.busy_threshold ||
+			input <= 0 || input > bds_tuners_ins.busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.semi_busy_threshold = input;
+	return count;
+}
+static ssize_t store_semi_busy_clr_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.busy_clr_threshold ||
+			input < 0 || input > bds_tuners_ins.semi_busy_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.semi_busy_clr_threshold = input;
+	return count;
+}
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+static ssize_t store_busy_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > BADASS_MAX_IDLE_COUNTER ||
+			input <= 0 || input < bds_tuners_ins.semi_busy_threshold ||
+			input > bds_tuners_ins.busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.busy_threshold = input;
+	return count;
+}
+static ssize_t store_busy_clr_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.busy_threshold ||
+			input <= 0 || input < bds_tuners_ins.semi_busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.busy_clr_threshold = input;
+	return count;
+}
+#endif
+
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
@@ -562,9 +636,13 @@ define_one_global_rw(ignore_nice_load);
 define_one_global_rw(powersave_bias);
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 define_one_global_rw(two_phase_freq);
+define_one_global_rw(semi_busy_threshold);
+define_one_global_rw(semi_busy_clr_threshold);
 #endif
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 define_one_global_rw(three_phase_freq);
+define_one_global_rw(busy_threshold);
+define_one_global_rw(busy_clr_threshold);
 #endif
 
 static struct attribute *bds_attributes[] = {
@@ -578,9 +656,13 @@ static struct attribute *bds_attributes[] = {
 	&io_is_busy.attr,
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
 	&two_phase_freq.attr,
+	&semi_busy_threshold.attr,
+	&semi_busy_clr_threshold.attr,
 #endif
 #ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
 	&three_phase_freq.attr,
+	&busy_threshold.attr,
+	&busy_clr_threshold.attr,
 #endif
 	NULL
 };
