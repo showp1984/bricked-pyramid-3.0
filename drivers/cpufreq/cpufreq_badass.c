@@ -625,7 +625,7 @@ static ssize_t store_busy_threshold(struct kobject *a, struct attribute *b,
 
 	if (ret != 1 || input > MAX_IDLE_COUNTER ||
 			input <= 0 || input < bds_tuners_ins.semi_busy_threshold ||
-			input > bds_tuners_ins.busy_clr_threshold) {
+			input < bds_tuners_ins.busy_clr_threshold) {
 		return -EINVAL;
 	}
 	bds_tuners_ins.busy_threshold = input;
@@ -684,9 +684,9 @@ static ssize_t store_gpu_busy_threshold(struct kobject *a, struct attribute *b,
 	int ret;
 	ret = sscanf(buf, "%u", &input);
 
-	if (ret != 1 || input > MAX_IDLE_COUNTER ||
+	if (ret != 1 || input > GPU_MAX_IDLE_COUNTER ||
 			input <= 0 || input < bds_tuners_ins.gpu_semi_busy_threshold ||
-			input > bds_tuners_ins.gpu_busy_clr_threshold) {
+			input < bds_tuners_ins.gpu_busy_clr_threshold) {
 		return -EINVAL;
 	}
 	bds_tuners_ins.gpu_busy_threshold = input;
