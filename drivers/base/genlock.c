@@ -670,7 +670,7 @@ static long genlock_dev_ioctl(struct file *filep, unsigned int cmd,
 		 * Locks should only be released when the handle is
 		 * destroyed
 		 */
-		GENLOCK_LOG_ERR("Deprecated RELEASE ioctl called\n");
+		//GENLOCK_LOG_ERR("Deprecated RELEASE ioctl called\n");
 		return -EINVAL;
 	}
 	default:
