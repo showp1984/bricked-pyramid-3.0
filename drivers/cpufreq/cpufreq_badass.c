@@ -57,10 +57,10 @@
 bool gpu_busy_state;
 #define GPU_MAX_IDLE_COUNTER			800
 #define GPU_COUNTER_INCREASE			8
-#define GPU_SEMI_BUSY_THRESHOLD			240
-#define GPU_SEMI_BUSY_CLR_THRESHOLD		150
+#define GPU_SEMI_BUSY_THRESHOLD			260
+#define GPU_SEMI_BUSY_CLR_THRESHOLD		180
 #define GPU_BUSY_THRESHOLD			700
-#define GPU_BUSY_CLR_THRESHOLD			450
+#define GPU_BUSY_CLR_THRESHOLD			500
 #define DECREASE_GPU_IDLE_COUNTER		4
 #endif
 
@@ -158,6 +158,12 @@ static struct bds_tuners {
 	unsigned int busy_threshold;
 	unsigned int busy_clr_threshold;
 #endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	unsigned int gpu_semi_busy_threshold;
+	unsigned int gpu_semi_busy_clr_threshold;
+	unsigned int gpu_busy_threshold;
+	unsigned int gpu_busy_clr_threshold;
+#endif
 } bds_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
@@ -173,6 +179,12 @@ static struct bds_tuners {
 	.three_phase_freq = 0,
 	.busy_threshold = BUSY_THRESHOLD,
 	.busy_clr_threshold = BUSY_CLR_THRESHOLD,
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	.gpu_semi_busy_threshold = GPU_SEMI_BUSY_THRESHOLD,
+	.gpu_semi_busy_clr_threshold = GPU_SEMI_BUSY_CLR_THRESHOLD,
+	.gpu_busy_threshold = GPU_BUSY_THRESHOLD,
+	.gpu_busy_clr_threshold = GPU_BUSY_CLR_THRESHOLD,
 #endif
 };
 
@@ -343,6 +355,12 @@ show_one(semi_busy_clr_threshold, semi_busy_clr_threshold);
 show_one(three_phase_freq, three_phase_freq);
 show_one(busy_threshold, busy_threshold);
 show_one(busy_clr_threshold, busy_clr_threshold);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+show_one(gpu_semi_busy_threshold, gpu_semi_busy_threshold);
+show_one(gpu_semi_busy_clr_threshold, gpu_semi_busy_clr_threshold);
+show_one(gpu_busy_threshold, gpu_busy_threshold);
+show_one(gpu_busy_clr_threshold, gpu_busy_clr_threshold);
 #endif
 
 static ssize_t show_powersave_bias
@@ -629,6 +647,67 @@ static ssize_t store_busy_clr_threshold(struct kobject *a, struct attribute *b,
 }
 #endif
 
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+static ssize_t store_gpu_semi_busy_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.gpu_busy_threshold ||
+			input <= 0 || input > bds_tuners_ins.gpu_busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.gpu_semi_busy_threshold = input;
+	return count;
+}
+static ssize_t store_gpu_semi_busy_clr_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.gpu_busy_clr_threshold ||
+			input < 0 || input > bds_tuners_ins.gpu_semi_busy_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.gpu_semi_busy_clr_threshold = input;
+	return count;
+}
+
+static ssize_t store_gpu_busy_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > MAX_IDLE_COUNTER ||
+			input <= 0 || input < bds_tuners_ins.gpu_semi_busy_threshold ||
+			input > bds_tuners_ins.gpu_busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.gpu_busy_threshold = input;
+	return count;
+}
+static ssize_t store_gpu_busy_clr_threshold(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > bds_tuners_ins.gpu_busy_threshold ||
+			input <= 0 || input < bds_tuners_ins.gpu_semi_busy_clr_threshold) {
+		return -EINVAL;
+	}
+	bds_tuners_ins.gpu_busy_clr_threshold = input;
+	return count;
+}
+#endif
+
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
@@ -645,6 +724,12 @@ define_one_global_rw(semi_busy_clr_threshold);
 define_one_global_rw(three_phase_freq);
 define_one_global_rw(busy_threshold);
 define_one_global_rw(busy_clr_threshold);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+define_one_global_rw(gpu_semi_busy_threshold);
+define_one_global_rw(gpu_semi_busy_clr_threshold);
+define_one_global_rw(gpu_busy_threshold);
+define_one_global_rw(gpu_busy_clr_threshold);
 #endif
 
 static struct attribute *bds_attributes[] = {
@@ -665,6 +750,12 @@ static struct attribute *bds_attributes[] = {
 	&three_phase_freq.attr,
 	&busy_threshold.attr,
 	&busy_clr_threshold.attr,
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
+	&gpu_semi_busy_threshold.attr,
+	&gpu_semi_busy_clr_threshold.attr,
+	&gpu_busy_threshold.attr,
+	&gpu_busy_clr_threshold.attr,
 #endif
 	NULL
 };
@@ -844,11 +935,11 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 		if ((gpu_busy_counter < GPU_MAX_IDLE_COUNTER) &&
 		    (gpu_busy_state == true)) {
 			gpu_busy_counter += GPU_COUNTER_INCREASE;
-			if ((gpu_busy_counter > GPU_SEMI_BUSY_THRESHOLD) && (gpu_busy_phase < 1)) {
+			if ((gpu_busy_counter > bds_tuners_ins.gpu_semi_busy_threshold) && (gpu_busy_phase < 1)) {
 				/* change to semi-busy phase (3) */
 				gpu_busy_phase = 1;
 			}
-			if ((gpu_busy_counter > GPU_BUSY_THRESHOLD) && (gpu_busy_phase < 2)) {
+			if ((gpu_busy_counter > bds_tuners_ins.gpu_busy_threshold) && (gpu_busy_phase < 2)) {
 				/* change to busy phase (full) */
 				gpu_busy_phase = 2;
 			}
@@ -924,11 +1015,11 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 		else if (gpu_busy_counter > 0)
 			gpu_busy_counter--;
 
-		if ((gpu_busy_counter < GPU_BUSY_CLR_THRESHOLD) && (gpu_busy_phase > 1)) {
+		if ((gpu_busy_counter < bds_tuners_ins.gpu_busy_clr_threshold) && (gpu_busy_phase > 1)) {
 			/* change to semi-busy phase */
 			gpu_busy_phase = 1;
 		}
-		if ((gpu_busy_counter < GPU_SEMI_BUSY_CLR_THRESHOLD) && (gpu_busy_phase > 0)) {
+		if ((gpu_busy_counter < bds_tuners_ins.gpu_semi_busy_clr_threshold) && (gpu_busy_phase > 0)) {
 			/* change to idle phase */
 			gpu_busy_phase = 0;
 		}
