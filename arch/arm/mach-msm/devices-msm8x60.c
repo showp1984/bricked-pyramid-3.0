@@ -116,12 +116,8 @@ struct platform_device msm_camera_sensor_webcam;
 
 /* cmdline_gpu */
 #ifdef CONFIG_CMDLINE_OPTIONS
-
-#define CMDLINE_3DGPU_DEFKHZ 266667000
-#define CMDLINE_2DGPU_DEFKHZ 200000000
-
-uint32_t cmdline_2dgpu = 200000000;
-uint32_t cmdline_3dgpu = 266667000;
+uint32_t cmdline_2dgpu = CMDLINE_2DGPU_DEFKHZ;
+uint32_t cmdline_3dgpu[2] = {CMDLINE_3DGPU_DEFKHZ_0, CMDLINE_3DGPU_DEFKHZ_1};
 
 static int __init devices_read_2dgpu_cmdline(char *khz)
 {
@@ -180,41 +176,63 @@ static int __init devices_read_3dgpu_cmdline(char *khz)
 
 	err = strict_strtoul(khz, 0, &ui_khz);
 	if (err) {
-		cmdline_3dgpu = CMDLINE_3DGPU_DEFKHZ;
+		cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+		cmdline_3dgpu[0] = CMDLINE_3DGPU_DEFKHZ_0;
 		printk(KERN_INFO "[cmdline_3dgpu]: ERROR while converting! using default value!");
-		printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz='%i'\n", cmdline_3dgpu);
+		printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz_0='%i' & 3dgpukhz_1='%i'\n",
+		       cmdline_3dgpu[0], cmdline_3dgpu[1]);
 		return 1;
 	}
 
 	/* Check if parsed value is valid */
 	if (ui_khz > 320000000)
-		cmdline_3dgpu = CMDLINE_3DGPU_DEFKHZ;
+		cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+		cmdline_3dgpu[0] = CMDLINE_3DGPU_DEFKHZ_0;
 
 	if (ui_khz < 266667000)
-		cmdline_3dgpu = CMDLINE_3DGPU_DEFKHZ;
+		cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+		cmdline_3dgpu[0] = CMDLINE_3DGPU_DEFKHZ_0;
 
 	for (f = valid_freq; f != 0; f++) {
 		if (*f == ui_khz) {
-			cmdline_3dgpu = ui_khz;
-			printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz='%u'\n", cmdline_3dgpu);
+			cmdline_3dgpu[0] = ui_khz;
+			if (*f == valid_freq[0]) {
+				cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+			} else {
+				f--;
+				cmdline_3dgpu[1] = *f;
+				f++;
+			}
+			printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz_0='%i' & 3dgpukhz_1='%i'\n",
+			       cmdline_3dgpu[0], cmdline_3dgpu[1]);
 			return 1;
 		}
 		if (ui_khz > *f) {
 			f++;
 			if (ui_khz < *f) {
 				f--;
-				cmdline_3dgpu = *f;
+				cmdline_3dgpu[0] = *f;
+				if (*f == valid_freq[0]) {
+					cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+				} else {
+					f--;
+					cmdline_3dgpu[1] = *f;
+					f++;
+				}
 				printk(KERN_INFO "[cmdline_3dgpu]: AUTOCORRECT! Couldn't find entered value");
-				printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz='%u'\n", cmdline_3dgpu);
+				printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz_0='%i' & 3dgpukhz_1='%i'\n",
+				       cmdline_3dgpu[0], cmdline_3dgpu[1]);
 				return 1;
 			}
 			f--;
 		}
 	}
 	/* if we are still in here then something went wrong. Use defaults */
-	cmdline_3dgpu = CMDLINE_3DGPU_DEFKHZ;
+	cmdline_3dgpu[1] = CMDLINE_3DGPU_DEFKHZ_1;
+	cmdline_3dgpu[0] = CMDLINE_3DGPU_DEFKHZ_0;
 	printk(KERN_INFO "[cmdline_3dgpu]: ERROR! using default value!");
-	printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz='%u'\n", cmdline_3dgpu);
+	printk(KERN_INFO "[cmdline_3dgpu]: 3dgpukhz_0='%i' & 3dgpukhz_1='%i'\n",
+	       cmdline_3dgpu[0], cmdline_3dgpu[1]);
         return 1;
 }
 __setup("3dgpu=", devices_read_3dgpu_cmdline);

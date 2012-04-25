@@ -13,6 +13,16 @@
 #ifndef __ARCH_ARM_MACH_MSM_DEVICES_MSM8X60_H
 #define __ARCH_ARM_MACH_MSM_DEVICES_MSM8X60_H
 
+#ifdef CONFIG_CMDLINE_OPTIONS
+/* cmdline_gpu variables */
+#define CMDLINE_3DGPU_DEFKHZ_0 266667000
+#define CMDLINE_3DGPU_DEFKHZ_1 228571000
+#define CMDLINE_2DGPU_DEFKHZ 200000000
+
+extern uint32_t cmdline_2dgpu;
+extern uint32_t cmdline_3dgpu[2];
+#endif
+
 #define MSM_GSBI3_QUP_I2C_BUS_ID 0
 #define MSM_GSBI4_QUP_I2C_BUS_ID 1
 #define MSM_GSBI9_QUP_I2C_BUS_ID 2
