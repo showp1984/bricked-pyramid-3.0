@@ -116,8 +116,8 @@ struct platform_device msm_camera_sensor_webcam;
 
 /* cmdline_gpu */
 #ifdef CONFIG_CMDLINE_OPTIONS
-uint32_t cmdline_2dgpu = CMDLINE_2DGPU_DEFKHZ;
-uint32_t cmdline_3dgpu[2] = {CMDLINE_3DGPU_DEFKHZ_0, CMDLINE_3DGPU_DEFKHZ_1};
+unsigned int cmdline_2dgpu = CMDLINE_2DGPU_DEFKHZ;
+unsigned int cmdline_3dgpu[2] = {CMDLINE_3DGPU_DEFKHZ_0, CMDLINE_3DGPU_DEFKHZ_1};
 
 static int __init devices_read_2dgpu_cmdline(char *khz)
 {
@@ -1208,6 +1208,26 @@ struct platform_device msm_kgsl_2d1 = {
 		.platform_data = &kgsl_2d1_pdata,
 	},
 };
+
+#ifdef CONFIG_CMDLINE_OPTIONS
+/* setters for cmdline_gpu */
+int set_kgsl_3d0_freq(unsigned int freq0, unsigned int freq1)
+{
+	kgsl_3d0_pdata.pwrlevel[0].gpu_freq = freq0;
+	kgsl_3d0_pdata.pwrlevel[1].gpu_freq = freq1;
+	return 0;
+}
+int set_kgsl_2d0_freq(unsigned int freq)
+{
+	kgsl_2d0_pdata.pwrlevel[0].gpu_freq = freq;
+	return 0;
+}
+int set_kgsl_2d1_freq(unsigned int freq)
+{
+	kgsl_2d1_pdata.pwrlevel[0].gpu_freq = freq;
+	return 0;
+}
+#endif
 
 /*
  * this a software workaround for not having two distinct board
