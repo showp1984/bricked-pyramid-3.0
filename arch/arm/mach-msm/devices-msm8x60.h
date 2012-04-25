@@ -19,8 +19,8 @@
 #define CMDLINE_3DGPU_DEFKHZ_1 228571000
 #define CMDLINE_2DGPU_DEFKHZ 200000000
 
-extern uint32_t cmdline_2dgpu;
-extern uint32_t cmdline_3dgpu[2];
+extern unsigned int cmdline_2dgpu;
+extern unsigned int cmdline_3dgpu[2];
 #endif
 
 #define MSM_GSBI3_QUP_I2C_BUS_ID 0
