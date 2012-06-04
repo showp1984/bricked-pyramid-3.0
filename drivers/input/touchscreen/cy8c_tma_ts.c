@@ -635,6 +635,29 @@ static ssize_t cy8c_hw_reset(struct device *dev,
 static DEVICE_ATTR(hw_reset, S_IWUSR,
 	NULL, cy8c_hw_reset);
 
+static ssize_t cy8c_sweep2wake_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", s2w_switch);
+
+	return count;
+}
+
+static ssize_t cy8c_sweep2wake_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] >= '0' && buf[0] <= '2' && buf[1] == '\n')
+		s2w_switch = buf[0] - '0';
+
+	return count;
+}
+
+static DEVICE_ATTR(sweep2wake, (S_IWUSR|S_IRUGO),
+	cy8c_sweep2wake_show, cy8c_sweep2wake_dump);
+
+
 static struct kobject *android_touch_kobj;
 
 static int cy8c_touch_sysfs_init(void)
@@ -646,6 +669,13 @@ static int cy8c_touch_sysfs_init(void)
 		ret = -ENOMEM;
 		return ret;
 	}
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+	ret = sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
+	if (ret) {
+		printk(KERN_ERR "%s: sysfs_create_file failed\n", __func__);
+		return ret;
+	}
+#endif
 	ret = sysfs_create_file(android_touch_kobj, &dev_attr_vendor.attr);
 	if (ret) {
 		printk(KERN_ERR "%s: sysfs_create_file failed\n", __func__);
@@ -697,6 +727,9 @@ static int cy8c_touch_sysfs_init(void)
 
 static void cy8c_touch_sysfs_deinit(void)
 {
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
+	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
+#endif
 	sysfs_remove_file(android_touch_kobj, &dev_attr_diag.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_debug_level.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_register.attr);
