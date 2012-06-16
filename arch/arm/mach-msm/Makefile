@@ -351,6 +351,7 @@ obj-$(CONFIG_MACH_PYRAMID) += board-pyramid-mmc.o board-pyramid-wifi.o
 ifeq ($(CONFIG_ION_MSM),y)
 obj-$(CONFIG_MACH_PYRAMID) += board-pyramid-ion.o
 endif
+obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
 obj-$(CONFIG_MACH_SHOOTER) += board-shooter.o
 obj-$(CONFIG_MACH_SHOOTER) += board-shooter-keypad.o
 obj-$(CONFIG_MACH_SHOOTER) += board-shooter-audio.o
