@@ -59,7 +59,34 @@ static int override_cpu;
 
 /* to be safe, fill vars with defaults */
 uint32_t cmdline_maxkhz = 1566000, cmdline_minkhz = 192000;
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
+char cmdline_gov[16] = "performance";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE
+char cmdline_gov[16] = "powersave";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
+char cmdline_gov[16] = "userspace";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
 char cmdline_gov[16] = "ondemand";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
+char cmdline_gov[16] = "conservative";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_LAGFREE
+char cmdline_gov[16] = "lagfree";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
+char cmdline_gov[16] = "interactive";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_LAZY
+char cmdline_gov[16] = "lazy";
+#endif
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_BADASS
+char cmdline_gov[16] = "badass";
+#endif
+
 uint32_t cmdline_maxscroff = 486000;
 bool cmdline_scroff = false;
 
