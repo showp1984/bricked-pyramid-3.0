@@ -649,7 +649,8 @@ static ssize_t cy8c_sweep2wake_dump(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	if (buf[0] >= '0' && buf[0] <= '2' && buf[1] == '\n')
-		s2w_switch = buf[0] - '0';
+		if (s2w_switch != buf[0] - '0')
+			s2w_switch = buf[0] - '0';
 
 	return count;
 }
