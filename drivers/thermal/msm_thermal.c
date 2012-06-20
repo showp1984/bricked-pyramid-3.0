@@ -21,16 +21,38 @@
 #include <linux/cpu.h>
 
 #define DEF_TEMP_SENSOR      0
-#define DEF_THERMAL_CHECK_MS 1250
-#define DEF_ALLOWED_MAX_HIGH 70
-#define DEF_ALLOWED_MAX_FREQ 810000
 
 static int enabled;
+
+//Highest thermal limit
+#define DEF_ALLOWED_MAX_HIGH 76
+#define DEF_ALLOWED_MAX_FREQ 384000
 static int allowed_max_high = DEF_ALLOWED_MAX_HIGH;
-static int allowed_max_low = (DEF_ALLOWED_MAX_HIGH - 10);
+static int allowed_max_low = (DEF_ALLOWED_MAX_HIGH - 4);
 static int allowed_max_freq = DEF_ALLOWED_MAX_FREQ;
+
+//mid thermal limit
+#define DEF_ALLOWED_MID_HIGH 72
+#define DEF_ALLOWED_MID_FREQ 648000
+static int allowed_mid_high = DEF_ALLOWED_MID_HIGH;
+static int allowed_mid_low = (DEF_ALLOWED_MID_HIGH - 4);
+static int allowed_mid_freq = DEF_ALLOWED_MID_FREQ;
+
+//low thermal limit
+#define DEF_ALLOWED_LOW_HIGH 70
+#define DEF_ALLOWED_LOW_FREQ 972000
+static int allowed_low_high = DEF_ALLOWED_LOW_HIGH;
+static int allowed_low_low = (DEF_ALLOWED_LOW_HIGH - 4);
+static int allowed_low_freq = DEF_ALLOWED_LOW_FREQ;
+
+//Sampling interval
+#define DEF_THERMAL_CHECK_MS 1000
 static int check_interval_ms = DEF_THERMAL_CHECK_MS;
+
+//Throttling indicator, 0=not throttled, 1=low, 2=mid, 3=max
 static int thermal_throttled = 0;
+
+//Safe the cpu max freq before throttling
 static int pre_throttled_max = 0;
 
 module_param(allowed_max_high, int, 0);
@@ -84,35 +106,69 @@ static void check_temp(struct work_struct *work)
 			pr_debug("msm_thermal: NULL policy on cpu %d\n", cpu);
 			continue;
 		}
-		if (temp >= allowed_max_high) {
-			if (cpu_policy->max > allowed_max_freq) {
-				update_policy = 1;
-				/* save pre-throttled max freq value */
-				pre_throttled_max = cpu_policy->max;
-				max_freq = allowed_max_freq;
-				thermal_throttled = 1;
-				pr_warn("Thermal Throttled! Set max freq to: \
-					 %u\n", max_freq);
-			} else {
-				pr_debug("msm_thermal: policy max for cpu %d "
-					 "already < allowed_max_freq\n", cpu);
-			}
-		} else if (temp < allowed_max_low && thermal_throttled) {
+
+		//low trip point
+		if ((temp >= allowed_low_high) &&
+		    (temp < allowed_mid_high) &&
+		    (cpu_policy->max > allowed_low_freq)) {
+			update_policy = 1;
+			/* save pre-throttled max freq value */
+			pre_throttled_max = cpu_policy->max;
+			max_freq = allowed_low_freq;
+			thermal_throttled = 1;
+			pr_warn("msm_thermal: Thermal Throttled (low)! temp: %lu\n", temp);
+		//low clr point
+		} else if ((temp < allowed_low_low) &&
+			   (thermal_throttled > 0)) {
 			if (cpu_policy->max < cpu_policy->cpuinfo.max_freq) {
 				if (pre_throttled_max != 0)
 					max_freq = pre_throttled_max;
-				else
-					max_freq = cpu_policy->
-						cpuinfo.max_freq;
+				else {
+					max_freq = 1566000;
+					pr_warn("msm_thermal: ERROR! pre_throttled_max=0, falling back to %u\n", max_freq);
+				}
 				update_policy = 1;
 				/* wait until 2nd core is unthrottled */
 				if (cpu == 1)
 					thermal_throttled = 0;
-				pr_warn("Thermal Throttling Ended! restore \
-					max freq to: %u\n", max_freq);
-			} else {
-				pr_debug("msm_thermal: policy max for cpu %d "
-					 "already at max allowed\n", cpu);
+				pr_warn("msm_thermal: Low Thermal Throttling Ended! temp: %lu\n", temp);
+			}
+		//mid trip point
+		} else if ((temp >= allowed_low_high) &&
+			   (temp < allowed_mid_low) &&
+			   (cpu_policy->max > allowed_mid_freq)) {
+			update_policy = 1;
+			max_freq = allowed_low_freq;
+			thermal_throttled = 2;
+			pr_warn("msm_thermal: Thermal Throttled (mid)! temp: %lu\n", temp);
+		//mid clr point
+		} else if ( (temp < allowed_mid_low) &&
+			   (thermal_throttled > 1)) {
+			if (cpu_policy->max < cpu_policy->cpuinfo.max_freq) {
+				max_freq = allowed_low_freq;
+				update_policy = 1;
+				/* wait until 2nd core is unthrottled */
+				if (cpu == 1)
+					thermal_throttled = 1;
+				pr_warn("msm_thermal: Mid Thermal Throttling Ended! temp: %lu\n", temp);
+			}
+		//max trip point
+		} else if ((temp >= allowed_max_high) &&
+			   (cpu_policy->max > allowed_max_freq)) {
+			update_policy = 1;
+			max_freq = allowed_max_freq;
+			thermal_throttled = 3;
+			pr_warn("msm_thermal: Thermal Throttled (max)! temp: %lu\n", temp);
+		//max clr point
+		} else if ((temp < allowed_max_low) &&
+			   (thermal_throttled > 2)) {
+			if (cpu_policy->max < cpu_policy->cpuinfo.max_freq) {
+				max_freq = allowed_mid_freq;
+				update_policy = 1;
+				/* wait until 2nd core is unthrottled */
+				if (cpu == 1)
+					thermal_throttled = 2;
+				pr_warn("msm_thermal: Max Thermal Throttling Ended! temp: %lu\n", temp);
 			}
 		}
 
