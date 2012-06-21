@@ -34,9 +34,7 @@
 
 #define MPDEC_TAG "[MPDEC]: "
 
-#ifdef CONFIG_SMP
 static struct workqueue_struct *msm_mpdec_wq;
-#endif
 
 struct msm_mpdec_suspend_t {
 	struct mutex suspend_mutex;
@@ -84,20 +82,12 @@ static struct early_suspend msm_mpdec_early_suspend_handler = {
 static int __init msm_mpdec(void)
 {
 	int cpu, err = 0;
-#if 0
-	err = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
-			&attr_mfreq.attr);
-	if (err)
-		pr_err("Failed to create sysfs mfreq\n");
-#endif
 	for_each_possible_cpu(cpu) {
 		mutex_init(&(per_cpu(msm_mpdec_suspend, cpu).suspend_mutex));
 		per_cpu(msm_mpdec_suspend, cpu).device_suspended = false;
 	}
 
-#ifdef CONFIG_SMP
 	msm_mpdec_wq = create_workqueue("msm-mpdec");
-#endif
 
 	register_early_suspend(&msm_mpdec_early_suspend_handler);
 
