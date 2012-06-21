@@ -1505,7 +1505,15 @@ config CMDLINE_OPTIONS
 	  This enables the parsing of maxkhz=<VALUEinKHZ>,
 	  minkhz=<VALUEinKHZ>, governor=<GOVERNOR.NAME> and
 	  maxscroff=<VALUEinKHZ> commands from the kernels cmdline.
-	  This also enables a freq. cap while the screen if off.
+	  This also enables a freq. cap while the screen is off.
+
+config MSM_MPDEC
+	bool "Enable kernel based mpdecision"
+	depends on MSM_SMP
+	default n
+	help
+	  This enables kernel based multi core control.
+	  (up/down hotplug based on load)
 
 if CPU_FREQ_MSM
 
