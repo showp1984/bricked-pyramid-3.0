@@ -635,6 +635,7 @@ static ssize_t cy8c_hw_reset(struct device *dev,
 static DEVICE_ATTR(hw_reset, S_IWUSR,
 	NULL, cy8c_hw_reset);
 
+#ifdef CONFIG_TOUCHSCREEN_CYPRESS_SWEEP2WAKE
 static ssize_t cy8c_sweep2wake_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -657,7 +658,7 @@ static ssize_t cy8c_sweep2wake_dump(struct device *dev,
 
 static DEVICE_ATTR(sweep2wake, (S_IWUSR|S_IRUGO),
 	cy8c_sweep2wake_show, cy8c_sweep2wake_dump);
-
+#endif
 
 static struct kobject *android_touch_kobj;
 
