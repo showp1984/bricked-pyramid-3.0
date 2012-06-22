@@ -48,6 +48,7 @@ struct msm_mpdec_suspend_t {
 	struct mutex suspend_mutex;
 	int online;
 	int device_suspended;
+	cputime64_t on_time;
 };
 static DEFINE_PER_CPU(struct msm_mpdec_suspend_t, msm_mpdec_suspend);
 
@@ -118,6 +119,7 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 {
 	int ret = 0;
 	unsigned int cpu = nr_cpu_ids;
+	cputime64_t on_time = 0;
 
 	if (per_cpu(msm_mpdec_suspend, (CONFIG_NR_CPUS - 1)).device_suspended == true)
 		goto out;
@@ -147,8 +149,9 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 			if ((per_cpu(msm_mpdec_suspend, cpu).online == true) && (cpu_online(cpu))) {
 				cpu_down(cpu);
 				per_cpu(msm_mpdec_suspend, cpu).online = false;
-				pr_info(MPDEC_TAG"CPU[%d] 1->0 | Mask=[%d%d]\n",
-						cpu, cpu_online(0), cpu_online(1));
+				on_time = ktime_to_ms(ktime_get()) - per_cpu(msm_mpdec_suspend, cpu).on_time;
+				pr_info(MPDEC_TAG"CPU[%d] on->off | Mask=[%d%d] | time online: %llu\n",
+						cpu, cpu_online(0), cpu_online(1), on_time);
 			} else if ((per_cpu(msm_mpdec_suspend, cpu).online == true) && (!cpu_online(cpu))) {
 				pr_info(MPDEC_TAG"CPU[%d] was unplugged outside of mpdecision! | pausing [%d]ms\n",
 						cpu, MSM_MPDEC_PAUSE);
@@ -163,7 +166,8 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 			if ((per_cpu(msm_mpdec_suspend, cpu).online == false) && (!cpu_online(cpu))) {
 				cpu_up(cpu);
 				per_cpu(msm_mpdec_suspend, cpu).online = true;
-				pr_info(MPDEC_TAG"CPU[%d] 0->1 | Mask=[%d%d]\n",
+				per_cpu(msm_mpdec_suspend, cpu).on_time = ktime_to_ms(ktime_get());
+				pr_info(MPDEC_TAG"CPU[%d] off->on | Mask=[%d%d]\n",
 						cpu, cpu_online(0), cpu_online(1));
 			} else if ((per_cpu(msm_mpdec_suspend, cpu).online == false) && (cpu_online(cpu))) {
 				pr_info(MPDEC_TAG"CPU[%d] was hotplugged outside of mpdecision! | pausing [%d]ms\n",
@@ -211,9 +215,10 @@ static void msm_mpdec_late_resume(struct early_suspend *h)
 			 * This boosts the wakeup process.
 			 */
 			cpu_up(cpu);
+			per_cpu(msm_mpdec_suspend, cpu).on_time = ktime_to_ms(ktime_get());
+			per_cpu(msm_mpdec_suspend, cpu).online = true;
 			pr_info(MPDEC_TAG"Screen -> on. Hot plugged CPU%d | Mask=[%d%d]\n",
 					cpu, cpu_online(0), cpu_online(1));
-			per_cpu(msm_mpdec_suspend, cpu).online = true;
 		}
 		per_cpu(msm_mpdec_suspend, cpu).device_suspended = false;
 		mutex_unlock(&per_cpu(msm_mpdec_suspend, cpu).suspend_mutex);
