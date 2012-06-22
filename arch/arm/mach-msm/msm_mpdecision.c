@@ -35,8 +35,6 @@
 #define MPDEC_TAG "[MPDEC]: "
 #define MSM_MPDEC_STARTDELAY 40000
 #define MSM_MPDEC_DELAY 500
-#define MSM_MPDEC_CPU_UPDELAY 200
-#define MSM_MPDEC_CPU_DOWNDELAY 200
 #define MSM_MPDEC_PAUSE 10000
 
 enum {
@@ -150,7 +148,6 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 			if ((per_cpu(msm_mpdec_suspend, cpu).online == true) && (cpu_online(cpu))) {
 				cpu_down(cpu);
 				per_cpu(msm_mpdec_suspend, cpu).online = false;
-				msleep(MSM_MPDEC_CPU_DOWNDELAY);
 				pr_info(MPDEC_TAG"CPU[%d] 1->0 | Mask=[%d%d]\n",
 						cpu, cpu_online(0), cpu_online(1));
 			} else {
@@ -167,7 +164,6 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 			if ((per_cpu(msm_mpdec_suspend, cpu).online == false) && (!cpu_online(cpu))) {
 				cpu_up(cpu);
 				per_cpu(msm_mpdec_suspend, cpu).online = true;
-				msleep(MSM_MPDEC_CPU_UPDELAY);
 				pr_info(MPDEC_TAG"CPU[%d] 0->1 | Mask=[%d%d]\n",
 						cpu, cpu_online(0), cpu_online(1));
 			} else {
