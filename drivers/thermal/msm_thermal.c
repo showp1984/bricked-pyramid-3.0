@@ -447,7 +447,7 @@ static int __init msm_thermal_init(void)
 
 	schedule_delayed_work(&check_temp_work, 0);
 
-	msm_thermal_kobject = kobject_create_and_add("msm_thermal", NULL);
+	msm_thermal_kobject = kobject_create_and_add("msm_thermal", kernel_kobj);
 	if (msm_thermal_kobject) {
 		rc = sysfs_create_group(msm_thermal_kobject,
 							&msm_thermal_attr_group);
