@@ -201,8 +201,8 @@ static void msm_mpdec_early_suspend(struct early_suspend *h)
 			pr_info(MPDEC_TAG"Screen -> off. Suspended CPU%d | Mask=[%d%d]\n",
 					cpu, cpu_online(0), cpu_online(1));
 			per_cpu(msm_mpdec_suspend, cpu).online = false;
-			per_cpu(msm_mpdec_suspend, cpu).device_suspended = true;
 		}
+		per_cpu(msm_mpdec_suspend, cpu).device_suspended = true;
 		mutex_unlock(&per_cpu(msm_mpdec_suspend, cpu).suspend_mutex);
 	}
 }
@@ -220,8 +220,8 @@ static void msm_mpdec_late_resume(struct early_suspend *h)
 			pr_info(MPDEC_TAG"Screen -> on. Hot plugged CPU%d | Mask=[%d%d]\n",
 					cpu, cpu_online(0), cpu_online(1));
 			per_cpu(msm_mpdec_suspend, cpu).online = true;
-			per_cpu(msm_mpdec_suspend, cpu).device_suspended = false;
 		}
+		per_cpu(msm_mpdec_suspend, cpu).device_suspended = false;
 		mutex_unlock(&per_cpu(msm_mpdec_suspend, cpu).suspend_mutex);
 	}
 }
