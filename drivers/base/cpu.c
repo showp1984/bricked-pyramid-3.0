@@ -36,6 +36,7 @@ static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr
 static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribute *attr,
 				 const char *buf, size_t count)
 {
+#ifndef CONFIG_MSM_MPDEC
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t ret;
 
@@ -59,6 +60,9 @@ static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribut
 	if (ret >= 0)
 		ret = count;
 	return ret;
+#else
+	return count;
+#endif
 }
 static SYSDEV_ATTR(online, 0644, show_online, store_online);
 
