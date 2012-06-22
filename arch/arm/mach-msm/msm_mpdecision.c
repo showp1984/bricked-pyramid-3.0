@@ -122,7 +122,6 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 	if (per_cpu(msm_mpdec_suspend, (CONFIG_NR_CPUS - 1)).device_suspended == true)
 		goto out;
 
-
 	if (!mutex_trylock(&msm_cpu_lock))
 		goto out;
 
