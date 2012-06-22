@@ -4,7 +4,7 @@
  * cpu auto-hotplug/unplug based on system load for MSM dualcore cpus
  * single core while screen is off
  *
- * Copyright (c) 2012, Dennis Rassmann.
+ * Copyright (c) 2012, Dennis Rassmann <showp1984@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
