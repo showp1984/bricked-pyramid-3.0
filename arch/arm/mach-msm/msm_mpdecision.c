@@ -149,8 +149,8 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 				per_cpu(msm_mpdec_suspend, cpu).online = false;
 				pr_info(MPDEC_TAG"CPU[%d] 1->0 | Mask=[%d%d]\n",
 						cpu, cpu_online(0), cpu_online(1));
-			} else {
-				pr_info(MPDEC_TAG"CPU[%d] was hotplugged outside of mpdecision! | pausing [%d]ms\n",
+			} else if ((per_cpu(msm_mpdec_suspend, cpu).online == true) && (!cpu_online(cpu))) {
+				pr_info(MPDEC_TAG"CPU[%d] was unplugged outside of mpdecision! | pausing [%d]ms\n",
 						cpu, MSM_MPDEC_PAUSE);
 				msleep(MSM_MPDEC_PAUSE);
 				was_paused = true;
@@ -165,8 +165,8 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 				per_cpu(msm_mpdec_suspend, cpu).online = true;
 				pr_info(MPDEC_TAG"CPU[%d] 0->1 | Mask=[%d%d]\n",
 						cpu, cpu_online(0), cpu_online(1));
-			} else {
-				pr_info(MPDEC_TAG"CPU[%d] was unplugged outside of mpdecision! | pausing [%d]ms\n",
+			} else if ((per_cpu(msm_mpdec_suspend, cpu).online == false) && (cpu_online(cpu))) {
+				pr_info(MPDEC_TAG"CPU[%d] was hotplugged outside of mpdecision! | pausing [%d]ms\n",
 						cpu, MSM_MPDEC_PAUSE);
 				msleep(MSM_MPDEC_PAUSE);
 				was_paused = true;
