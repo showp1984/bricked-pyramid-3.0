@@ -67,7 +67,7 @@ static struct msm_mpdec_tuners {
 	.scroff_single_core = true,
 };
 
-static unsigned int NwNs_Threshold[4] = {25, 0, 0, 5};
+static unsigned int NwNs_Threshold[4] = {35, 0, 0, 5};
 static unsigned int TwTs_Threshold[4] = {250, 0, 0, 250};
 
 extern unsigned int get_rq_info(void);
