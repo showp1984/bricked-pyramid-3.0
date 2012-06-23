@@ -95,8 +95,8 @@ PBCMSDH_SDMMC_INSTANCE gInstance;
 /* Maximum number of bcmsdh_sdmmc devices supported by driver */
 #define BCMSDH_SDMMC_MAX_DEVICES 1
 
-extern int bcmsdh_probe(struct device *dev);
-extern int bcmsdh_remove(struct device *dev);
+extern int bcmsdh_dhd_probe(struct device *dev);
+extern int bcmsdh_dhd_remove(struct device *dev);
 
 extern volatile bool dhd_mmc_suspend;
 
@@ -117,8 +117,8 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 		gInstance->func[0] = &sdio_func_0;
 		if(func->device == 0x4) { /* 4318 */
 			gInstance->func[2] = NULL;
-			sd_trace(("NIC found, calling bcmsdh_probe...\n"));
-			ret = bcmsdh_probe(&func->dev);
+			sd_trace(("NIC found, calling bcmsdh_dhd_probe...\n"));
+			ret = bcmsdh_dhd_probe(&func->dev);
 		}
 	}
 
@@ -128,8 +128,8 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 #ifdef WL_CFG80211
 		wl_cfg80211_set_parent_dev(&func->dev);
 #endif
-		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
-		ret = bcmsdh_probe(&func->dev);
+		sd_trace(("F2 found, calling bcmsdh_dhd_probe...\n"));
+		ret = bcmsdh_dhd_probe(&func->dev);
 	}
 
 	return ret;
@@ -144,8 +144,8 @@ static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 	sd_info(("Function#: 0x%04x\n", func->num));
 
 	if (func->num == 2) {
-		sd_trace(("F2 found, calling bcmsdh_remove...\n"));
-		bcmsdh_remove(&func->dev);
+		sd_trace(("F2 found, calling bcmsdh_dhd_remove...\n"));
+		bcmsdh_dhd_remove(&func->dev);
 	} else if (func->num == 1) {
 		sdio_claim_host(func);
 		sdio_disable_func(func);
@@ -332,7 +332,7 @@ int sdio_function_init(void)
 /*
  * module cleanup
 */
-extern int bcmsdh_remove(struct device *dev);
+extern int bcmsdh_dhd_remove(struct device *dev);
 void sdio_function_cleanup(void)
 {
 	sd_trace(("%s Enter\n", __FUNCTION__));
