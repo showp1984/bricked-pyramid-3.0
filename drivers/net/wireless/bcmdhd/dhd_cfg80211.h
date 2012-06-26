@@ -1,5 +1,5 @@
 /*
- * 802.1Q VLAN protocol definitions
+ * Linux cfg80211 driver - Dongle Host Driver (DHD) related
  *
  * Copyright (C) 1999-2011, Broadcom Corporation
  * 
@@ -21,50 +21,22 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: vlan.h,v 9.7 2009-03-13 01:11:50 $
+ * $Id: wl_cfg80211.c,v 1.1.4.1.2.14 2011/02/09 01:40:07 Exp $
  */
 
 
-#ifndef _vlan_h_
-#define _vlan_h_
+#ifndef __DHD_CFG80211__
+#define __DHD_CFG80211__
 
-#ifndef _TYPEDEFS_H_
-#include <typedefs.h>
-#endif
+#include <wl_cfg80211.h>
+#include <wl_cfgp2p.h>
 
+s32 dhd_cfg80211_init(struct wl_priv *wl);
+s32 dhd_cfg80211_deinit(struct wl_priv *wl);
+s32 dhd_cfg80211_down(struct wl_priv *wl);
+s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock);
 
-#include <packed_section_start.h>
+int wl_cfg80211_btcoex_init(struct wl_priv *wl);
+void wl_cfg80211_btcoex_deinit(struct wl_priv *wl);
 
-#define VLAN_VID_MASK		0xfff	
-#define	VLAN_CFI_SHIFT		12	
-#define VLAN_PRI_SHIFT		13	
-
-#define VLAN_PRI_MASK		7	
-
-#define	VLAN_TAG_LEN		4
-#define	VLAN_TAG_OFFSET		(2 * ETHER_ADDR_LEN)	
-
-#define VLAN_TPID		0x8100	
-
-struct ethervlan_header {
-	uint8	ether_dhost[ETHER_ADDR_LEN];
-	uint8	ether_shost[ETHER_ADDR_LEN];
-	uint16	vlan_type;		
-	uint16	vlan_tag;		
-	uint16	ether_type;
-};
-
-#define	ETHERVLAN_HDR_LEN	(ETHER_HDR_LEN + VLAN_TAG_LEN)
-
-
-
-#include <packed_section_end.h>
-
-#define ETHERVLAN_MOVE_HDR(d, s) \
-do { \
-	struct ethervlan_header t; \
-	t = *(struct ethervlan_header *)(s); \
-	*(struct ethervlan_header *)(d) = t; \
-} while (0)
-
-#endif 
+#endif /* __DHD_CFG80211__ */

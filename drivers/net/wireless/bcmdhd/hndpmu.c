@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.c,v 1.228.2.56 2011-02-11 22:49:07 Exp $
+ * $Id: hndpmu.c 279296 2011-08-23 23:17:20Z $
  */
 
 #include <typedefs.h>
@@ -206,7 +206,10 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 
 		if (i > 0 && drivestrength > str_tab[i].strength)
 			i--;
-
+#ifdef HTC_KlocWork
+    if( cc!= NULL )
+    {
+#endif
 		W_REG(osh, &cc->chipcontrol_addr, 1);
 		cc_data_temp = R_REG(osh, &cc->chipcontrol_data);
 		cc_data_temp &= ~str_mask;
@@ -216,6 +219,9 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 		PMU_MSG(("SDIO: %dmA drive strength requested; set to %dmA\n",
 		         drivestrength, str_tab[i].strength));
 	}
+#ifdef HTC_KlocWork
+    } // cc!=NULL
+#endif
 
 	/* Return to original core */
 	si_restore_core(sih, origidx, intr_val);

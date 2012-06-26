@@ -106,13 +106,14 @@ sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 	sd_info(("%s: Card's Common CIS Ptr = 0x%x\n", __FUNCTION__, sd->com_cis_ptr));
 
 	/* Enable Function 1 */
-	sdio_claim_host(gInstance->func[1]);
-	err_ret = sdio_enable_func(gInstance->func[1]);
-	sdio_release_host(gInstance->func[1]);
-	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to enable F1 Err: 0x%08x", err_ret));
+	if (gInstance->func[1]) {
+		sdio_claim_host(gInstance->func[1]);
+		err_ret = sdio_enable_func(gInstance->func[1]);
+		sdio_release_host(gInstance->func[1]);
+		if (err_ret) {
+			sd_err(("bcmsdh_sdmmc: Failed to enable F1 Err: 0x%08x", err_ret));
+		}
 	}
-
 	return FALSE;
 }
 
@@ -152,19 +153,25 @@ sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	gInstance->sd = sd;
 
 	/* Claim host controller */
-	sdio_claim_host(gInstance->func[1]);
+	if (gInstance->func[1]) {
+		/* for debug */
+		sd_err(("debug bcmsdh_sdmmc: F1\n"));
+		/* Claim host controller F1 */
+		sdio_claim_host(gInstance->func[1]);
 
-	sd->client_block_size[1] = 64;
-	err_ret = sdio_set_block_size(gInstance->func[1], 64);
-	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to set F1 blocksize\n"));
+		sd->client_block_size[1] = 64;
+		err_ret = sdio_set_block_size(gInstance->func[1], 64);
+		if (err_ret) {
+			sd_err(("bcmsdh_sdmmc: Failed to set F1 blocksize\n"));
+		}
+
+		/* Release host controller F1 */
+		sdio_release_host(gInstance->func[1]);
 	}
-
-	/* Release host controller F1 */
-	sdio_release_host(gInstance->func[1]);
 
 	if (gInstance->func[2]) {
 		/* Claim host controller F2 */
+		sd_err(("debug bcmsdh_sdmmc: F2\n"));
 		sdio_claim_host(gInstance->func[2]);
 
 		sd->client_block_size[2] = sd_f2_blocksize;
@@ -448,6 +455,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		bcopy(params, &int_val, sizeof(int_val));
 
 	bool_val = (int_val != 0) ? TRUE : FALSE;
+	BCM_REFERENCE(bool_val);
 
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	switch (actionid) {
@@ -682,10 +690,10 @@ sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 	else
 		data = SDIO_SEPINT_ACT_HI;	/* disable hw oob interrupt */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
+#if 1 && LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
 	/* Needed for Android Linux Kernel 2.6.35 */
 	data |= SDIO_SEPINT_ACT_HI; 		/* Active HIGH */
-#endif
+#endif /* OEM_ANDROID */
 
 	status = sdioh_request_byte(sd, SDIOH_WRITE, 0, SDIOD_CCCR_BRCM_SEPINT, &data);
 	return status;
@@ -766,9 +774,13 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 length)
 extern SDIOH_API_RC
 sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *byte)
 {
-	int err_ret;
+	int err_ret = 0; /* HTC_KlocWork */
 
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
+	if (!gInstance->func[func]) {
+		sd_err(("func %d at %s is null\n", func, __func__));
+		return SDIOH_API_RC_FAIL;
+	}
 
 	DHD_PM_RESUME_WAIT(sdioh_request_byte_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
@@ -856,6 +868,10 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 		sd_err(("%s: Only CMD52 allowed to F0.\n", __FUNCTION__));
 		return SDIOH_API_RC_FAIL;
 	}
+	if (!gInstance->func[func]) {
+		sd_err(("func %d at %s is null\n", func, __func__));
+		return SDIOH_API_RC_FAIL;
+	}
 
 	sd_info(("%s: cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 	         __FUNCTION__, cmd_type, rw, func, addr, nbytes));
@@ -905,6 +921,11 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	void *pnext;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
+
+	if (!gInstance->func[func]) {
+		sd_err(("func %d at %s is null\n", func, __func__));
+		return SDIOH_API_RC_FAIL;
+	}
 
 	ASSERT(pkt);
 	DHD_PM_RESUME_WAIT(sdioh_request_packet_wait);
@@ -995,6 +1016,11 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	void *mypkt = NULL;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
+
+	if (!gInstance->func[func]) {
+		sd_err(("func %d at %s is null\n", func, __func__));
+		return SDIOH_API_RC_FAIL;
+	}
 
 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
@@ -1179,6 +1205,7 @@ static void IRQHandlerF2(struct sdio_func *func)
 	sd = gInstance->sd;
 
 	ASSERT(sd != NULL);
+	BCM_REFERENCE(sd);
 }
 #endif /* !defined(OOB_INTR_ONLY) */
 
@@ -1275,8 +1302,8 @@ sdioh_start(sdioh_info_t *si, int stage)
 #else /* defined(OOB_INTR_ONLY) */
 #if defined(HW_OOB)
 			sdioh_enable_func_intr();
-#endif
 			bcmsdh_oob_intr_set(TRUE);
+#endif
 #endif /* !defined(OOB_INTR_ONLY) */
 		}
 	}
@@ -1304,8 +1331,8 @@ sdioh_stop(sdioh_info_t *si)
 #else /* defined(OOB_INTR_ONLY) */
 #if defined(HW_OOB)
 		sdioh_disable_func_intr();
-#endif
 		bcmsdh_oob_intr_set(FALSE);
+#endif
 #endif /* !defined(OOB_INTR_ONLY) */
 	}
 	else
@@ -1318,3 +1345,28 @@ sdioh_waitlockfree(sdioh_info_t *sd)
 {
 	return (1);
 }
+
+SDIOH_API_RC
+sdioh_gpioouten(sdioh_info_t *sd, uint32 gpio)
+{
+	return SDIOH_API_RC_FAIL;
+}
+
+SDIOH_API_RC
+sdioh_gpioout(sdioh_info_t *sd, uint32 gpio, bool enab)
+{
+	return SDIOH_API_RC_FAIL;
+}
+
+bool
+sdioh_gpioin(sdioh_info_t *sd, uint32 gpio)
+{
+	return FALSE;
+}
+
+SDIOH_API_RC
+sdioh_gpio_init(sdioh_info_t *sd)
+{
+	return SDIOH_API_RC_FAIL;
+}
+

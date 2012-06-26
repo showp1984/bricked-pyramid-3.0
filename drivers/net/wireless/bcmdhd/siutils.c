@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c,v 1.813.2.36 2011-02-10 23:43:55 Exp $
+ * $Id: siutils.c 279502 2011-08-24 20:46:27Z $
  */
 
 #include <typedefs.h>
@@ -44,8 +44,14 @@
 #include <bcmsdpcm.h>
 #include <hndpmu.h>
 
+#if !defined(BCM_BOOTLOADER) && defined(SAVERESTORE)
+#include <saverestore.h>
+#endif
+
 #include "siutils_priv.h"
 
+int bcm_chip_is_4330b1 = 0;
+int bcm_chip_is_4330 = 0;
 /* local prototypes */
 static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs,
                               uint bustype, void *sdh, char **vars, uint *varsz);
@@ -104,7 +110,12 @@ si_kattach(osl_t *osh)
 	if (!ksii_attached) {
 		void *regs;
 		regs = REG_MAP(SI_ENUM_BASE, SI_CORE_SIZE);
-
+#ifdef HTC_KlocWork
+		if(!osh){
+			SI_ERROR(("[HTCKW] si_kattach: osh is NULL\n"));
+			return NULL;
+		}
+#endif
 		if (si_doattach(&ksii, BCM4710_DEVICE_ID, osh, regs,
 		                SI_BUS, NULL,
 		                osh != SI_OSH ? &ksii.vars : NULL,
@@ -186,7 +197,12 @@ si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype, uint32 savewin,
 
 	cc = si_setcoreidx(&sii->pub, SI_CC_IDX);
 	ASSERT((uintptr)cc);
-
+#ifdef HTC_KlocWork
+    if(cc == NULL){
+        SI_ERROR(("[HTCKW] si_buscore_setup: cc is NULL\n"));
+        return FALSE;
+    }
+#endif
 	/* get chipcommon rev */
 	sii->pub.ccrev = (int)si_corerev(&sii->pub);
 
@@ -352,11 +368,23 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs,
 	 *   If we add other chiptypes (or if we need to support old sdio hosts w/o chipcommon),
 	 *   some way of recognizing them needs to be added here.
 	 */
+#ifdef HTC_KlocWork
+    if (cc == NULL) {
+        SI_ERROR(("[HTCKW] si_doattach: cc is NULL-1\n"));
+        return NULL;
+    }
+#endif
 	w = R_REG(osh, &cc->chipid);
 	sih->socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 	/* Might as wll fill in chip id rev & pkg */
 	sih->chip = w & CID_ID_MASK;
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
+	if (sih->chip == BCM4330_CHIP_ID) {
+		printf("sih->chiprev = %d\n", sih->chiprev);
+		bcm_chip_is_4330 = 1;
+		if (sih->chiprev == 3)
+			bcm_chip_is_4330b1 = 1;
+	}
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 	if (CHIPID(sih->chip) == BCM4322_CHIP_ID && (((sih->chipst & CST4322_SPROM_OTP_SEL_MASK)
 		>> CST4322_SPROM_OTP_SEL_SHIFT) == (CST4322_OTP_PRESENT |
@@ -424,6 +452,12 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs,
 
 		if (sii->pub.ccrev >= 20) {
 			cc = (chipcregs_t *)si_setcore(sih, CC_CORE_ID, 0);
+#ifdef HTC_KlocWork
+    if (cc == NULL) {
+        SI_ERROR(("[HTCKW] si_doattach: cc is NULL-2\n"));
+        return NULL;
+    }
+#endif
 			ASSERT(cc != NULL);
 			W_REG(osh, &cc->gpiopullup, 0);
 			W_REG(osh, &cc->gpiopulldown, 0);
@@ -431,6 +465,10 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs,
 		}
 
 
+
+#if !defined(BCM_BOOTLOADER) && defined(SAVERESTORE)
+	sr_save_restore_init(sih);
+#endif /* !defined(BCM_BOOTLOADER) && defined(SAVERESTORE) */
 
 
 	return (sii);
@@ -1093,6 +1131,133 @@ si_watchdog_ms(si_t *sih, uint32 ms)
 
 
 
+/* return the slow clock source - LPO, XTAL, or PCI */
+static uint
+si_slowclk_src(si_info_t *sii)
+{
+	chipcregs_t *cc;
+
+	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
+
+	if (sii->pub.ccrev < 6) {
+		if ((BUSTYPE(sii->pub.bustype) == PCI_BUS) &&
+		    (OSL_PCI_READ_CONFIG(sii->osh, PCI_GPIO_OUT, sizeof(uint32)) &
+		     PCI_CFG_GPIO_SCS))
+			return (SCC_SS_PCI);
+		else
+			return (SCC_SS_XTAL);
+	} else if (sii->pub.ccrev < 10) {
+		cc = (chipcregs_t *)si_setcoreidx(&sii->pub, sii->curidx);
+#ifdef HTC_KlocWork
+		if (cc == NULL) {
+			SI_ERROR(("[HTCKW] si_slowclk_src: cc is NULL-1\n"));
+			return -1;
+		}
+#endif
+		return (R_REG(sii->osh, &cc->slow_clk_ctl) & SCC_SS_MASK);
+	} else	/* Insta-clock */
+		return (SCC_SS_XTAL);
+}
+
+/* return the ILP (slowclock) min or max frequency */
+static uint
+si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
+{
+	uint32 slowclk;
+	uint div;
+
+	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
+
+	/* shouldn't be here unless we've established the chip has dynamic clk control */
+	ASSERT(R_REG(sii->osh, &cc->capabilities) & CC_CAP_PWR_CTL);
+
+	slowclk = si_slowclk_src(sii);
+	if (sii->pub.ccrev < 6) {
+		if (slowclk == SCC_SS_PCI)
+			return (max_freq ? (PCIMAXFREQ / 64) : (PCIMINFREQ / 64));
+		else
+			return (max_freq ? (XTALMAXFREQ / 32) : (XTALMINFREQ / 32));
+	} else if (sii->pub.ccrev < 10) {
+		div = 4 *
+		        (((R_REG(sii->osh, &cc->slow_clk_ctl) & SCC_CD_MASK) >> SCC_CD_SHIFT) + 1);
+		if (slowclk == SCC_SS_LPO)
+			return (max_freq ? LPOMAXFREQ : LPOMINFREQ);
+		else if (slowclk == SCC_SS_XTAL)
+			return (max_freq ? (XTALMAXFREQ / div) : (XTALMINFREQ / div));
+		else if (slowclk == SCC_SS_PCI)
+			return (max_freq ? (PCIMAXFREQ / div) : (PCIMINFREQ / div));
+		else
+			ASSERT(0);
+	} else {
+		/* Chipc rev 10 is InstaClock */
+		div = R_REG(sii->osh, &cc->system_clk_ctl) >> SYCC_CD_SHIFT;
+		div = 4 * (div + 1);
+		return (max_freq ? XTALMAXFREQ : (XTALMINFREQ / div));
+	}
+	return (0);
+}
+
+static void
+si_clkctl_setdelay(si_info_t *sii, void *chipcregs)
+{
+	chipcregs_t *cc = (chipcregs_t *)chipcregs;
+	uint slowmaxfreq, pll_delay, slowclk;
+	uint pll_on_delay, fref_sel_delay;
+
+	pll_delay = PLL_DELAY;
+
+	/* If the slow clock is not sourced by the xtal then add the xtal_on_delay
+	 * since the xtal will also be powered down by dynamic clk control logic.
+	 */
+
+	slowclk = si_slowclk_src(sii);
+	if (slowclk != SCC_SS_XTAL)
+		pll_delay += XTAL_ON_DELAY;
+
+	/* Starting with 4318 it is ILP that is used for the delays */
+	slowmaxfreq = si_slowclk_freq(sii, (sii->pub.ccrev >= 10) ? FALSE : TRUE, cc);
+
+	pll_on_delay = ((slowmaxfreq * pll_delay) + 999999) / 1000000;
+	fref_sel_delay = ((slowmaxfreq * FREF_DELAY) + 999999) / 1000000;
+
+	W_REG(sii->osh, &cc->pll_on_delay, pll_on_delay);
+	W_REG(sii->osh, &cc->fref_sel_delay, fref_sel_delay);
+}
+
+/* initialize power control delay registers */
+void
+si_clkctl_init(si_t *sih)
+{
+	si_info_t *sii;
+	uint origidx = 0;
+	chipcregs_t *cc;
+	bool fast;
+
+	if (!CCCTL_ENAB(sih))
+		return;
+
+	sii = SI_INFO(sih);
+	fast = SI_FAST(sii);
+	if (!fast) {
+		origidx = sii->curidx;
+		if ((cc = (chipcregs_t *)si_setcore(sih, CC_CORE_ID, 0)) == NULL)
+			return;
+	} else if ((cc = (chipcregs_t *)CCREGS_FAST(sii)) == NULL)
+		return;
+	ASSERT(cc != NULL);
+
+	/* set all Instaclk chip ILP to 1 MHz */
+	if (sih->ccrev >= 10)
+		SET_REG(sii->osh, &cc->system_clk_ctl, SYCC_CD_MASK,
+		        (ILP_DIV_1MHZ << SYCC_CD_SHIFT));
+
+	si_clkctl_setdelay(sii, (void *)(uintptr)cc);
+
+	if (!fast)
+		si_setcoreidx(sih, origidx);
+}
+
+
 /* change logical "focus" to the gpio core for optimized access */
 void *
 si_gpiosetcore(si_t *sih)
@@ -1682,7 +1847,12 @@ si_btcgpiowar(si_t *sih)
 
 	cc = (chipcregs_t *)si_setcore(sih, CC_CORE_ID, 0);
 	ASSERT(cc != NULL);
-
+#ifdef HTC_KlocWork
+		if (cc == NULL) {
+			SI_ERROR(("[HTCKW] si_btcgpiowar: cc is NULL-1\n"));
+			return;
+		}
+#endif
 	W_REG(sii->osh, &cc->uart0mcr, R_REG(sii->osh, &cc->uart0mcr) | 0x04);
 
 	/* restore the original index */
@@ -1717,4 +1887,69 @@ si_deviceremoved(si_t *sih)
 		break;
 	}
 	return FALSE;
+}
+
+bool
+si_is_sprom_available(si_t *sih)
+{
+	if (sih->ccrev >= 31) {
+		si_info_t *sii;
+		uint origidx;
+		chipcregs_t *cc;
+		uint32 sromctrl;
+
+		if ((sih->cccaps & CC_CAP_SROM) == 0)
+			return FALSE;
+
+		sii = SI_INFO(sih);
+		origidx = sii->curidx;
+		cc = si_setcoreidx(sih, SI_CC_IDX);
+#ifdef HTC_KlocWork
+		if (cc == NULL) {
+			SI_ERROR(("[HTCKW] si_is_sprom_available: cc is NULL-1\n"));
+			return FALSE;
+		}
+#endif
+		sromctrl = R_REG(sii->osh, &cc->sromcontrol);
+		si_setcoreidx(sih, origidx);
+		return (sromctrl & SRC_PRESENT);
+	}
+
+	switch (CHIPID(sih->chip)) {
+	case BCM4312_CHIP_ID:
+		return ((sih->chipst & CST4312_SPROM_OTP_SEL_MASK) != CST4312_OTP_SEL);
+	case BCM4325_CHIP_ID:
+		return (sih->chipst & CST4325_SPROM_SEL) != 0;
+	case BCM4322_CHIP_ID:
+	case BCM43221_CHIP_ID:
+	case BCM43231_CHIP_ID:
+	case BCM43222_CHIP_ID:
+	case BCM43111_CHIP_ID:
+	case BCM43112_CHIP_ID:
+	case BCM4342_CHIP_ID:
+	{
+		uint32 spromotp;
+		spromotp = (sih->chipst & CST4322_SPROM_OTP_SEL_MASK) >>
+		        CST4322_SPROM_OTP_SEL_SHIFT;
+		return (spromotp & CST4322_SPROM_PRESENT) != 0;
+	}
+	case BCM4329_CHIP_ID:
+		return (sih->chipst & CST4329_SPROM_SEL) != 0;
+	case BCM4315_CHIP_ID:
+		return (sih->chipst & CST4315_SPROM_SEL) != 0;
+	case BCM4319_CHIP_ID:
+		return (sih->chipst & CST4319_SPROM_SEL) != 0;
+	case BCM4336_CHIP_ID:
+	case BCM43362_CHIP_ID:
+		return (sih->chipst & CST4336_SPROM_PRESENT) != 0;
+	case BCM4330_CHIP_ID:
+		return (sih->chipst & CST4330_SPROM_PRESENT) != 0;
+	case BCM4313_CHIP_ID:
+		return (sih->chipst & CST4313_SPROM_PRESENT) != 0;
+	case BCM43239_CHIP_ID:
+		return ((sih->chipst & CST43239_SPROM_MASK) &&
+			!(sih->chipst & CST43239_SFLASH_MASK));
+	default:
+		return TRUE;
+	}
 }

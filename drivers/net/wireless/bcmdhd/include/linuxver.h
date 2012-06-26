@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linuxver.h,v 13.53.2.2 2010-12-22 23:47:26 Exp $
+ * $Id: linuxver.h 275790 2011-08-04 23:02:47Z $
  */
 
 
@@ -482,7 +482,11 @@ typedef struct {
 #define DBG_THR(x)
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
+#else
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
+#endif
 
 
 #define PROC_START(thread_func, owner, tsk_ctl, flags) \
@@ -493,7 +497,7 @@ typedef struct {
 	(tsk_ctl)->terminated = FALSE; \
 	(tsk_ctl)->thr_pid = kernel_thread(thread_func, tsk_ctl, flags); \
 	if ((tsk_ctl)->thr_pid > 0) \
-		wait_for_completion(&((tsk_ctl)->completed)); \
+		wait_for_completion_timeout(&((tsk_ctl)->completed), 2*HZ); \
 	DBG_THR(("%s thr:%lx started\n", __FUNCTION__, (tsk_ctl)->thr_pid)); \
 }
 
@@ -510,14 +514,14 @@ typedef struct {
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
-#define KILL_PROC(nr, sig) \
+/* HTC_CSP_START */
+#define KILL_PROC(pid, sig) \
 { \
-struct task_struct *tsk; \
-struct pid *pid;    \
-pid = find_get_pid((pid_t)nr);    \
-tsk = pid_task(pid, PIDTYPE_PID);    \
-if (tsk) send_sig(sig, tsk, 1); \
+	struct task_struct *tsk; \
+	tsk = pid_task(find_vpid(pid), PIDTYPE_PID); \
+	if (tsk) send_sig(sig, tsk, 1); \
 }
+/* HTC_CSP_END */
 #else
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && (LINUX_VERSION_CODE <= \
 	KERNEL_VERSION(2, 6, 30))

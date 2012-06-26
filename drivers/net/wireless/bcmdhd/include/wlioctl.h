@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h,v 1.767.2.38 2011-02-01 23:04:28 Exp $
+ * $Id: wlioctl.h 287802 2011-10-04 22:44:46Z $
  */
 
 
@@ -65,8 +65,8 @@ typedef struct wl_action_frame {
 
 typedef struct ssid_info
 {
-	uint8		ssid_len;
-	uint8		ssid[32];
+	uint8		ssid_len;	
+	uint8		ssid[32];	
 } ssid_info_t;
 
 typedef struct wl_af_params {
@@ -191,6 +191,7 @@ typedef struct wlc_ssid {
 #define WL_SCANFLAGS_PROHIBITED 0x04    
 
 #define WL_SCAN_PARAMS_SSID_MAX 	10
+
 typedef struct wl_scan_params {
 	wlc_ssid_t ssid;        
 	struct ether_addr bssid;    
@@ -555,7 +556,11 @@ typedef enum sup_auth_status {
 #define CRYPTO_ALGO_AES_OCB_MSDU    5
 #define CRYPTO_ALGO_AES_OCB_MPDU    6
 #define CRYPTO_ALGO_NALG        7
-#define CRYPTO_ALGO_PMK			12
+
+#ifdef BCMWAPI_WPI
+#define CRYPTO_ALGO_SMS4        11
+#endif /* BCMWAPI_WPI */
+#define CRYPTO_ALGO_PMK			12	
 
 #define WSEC_GEN_MIC_ERROR  0x0001
 #define WSEC_GEN_REPLAY     0x0002
@@ -607,6 +612,9 @@ typedef struct {
 #define WSEC_SWFLAG     0x0008
 #define SES_OW_ENABLED      0x0040  
 
+#ifdef BCMWAPI_WPI
+#define SMS4_ENABLED        0x0100
+#endif /* BCMWAPI_WPI */
 
 #define WPA_AUTH_DISABLED   0x0000  
 #define WPA_AUTH_NONE       0x0001  
@@ -617,9 +625,15 @@ typedef struct {
 #define WPA2_AUTH_PSK       0x0080  
 #define BRCM_AUTH_PSK           0x0100  
 #define BRCM_AUTH_DPT       0x0200  
-#define WPA2_AUTH_MFP           0x1000
-#define WPA2_AUTH_TPK		0x2000
-#define WPA2_AUTH_FT		0x4000
+#ifdef BCMWAPI_WAI
+#define WPA_AUTH_WAPI           0x0400
+#define WAPI_AUTH_NONE      WPA_AUTH_NONE   /* none (IBSS) */
+#define WAPI_AUTH_UNSPECIFIED   0x0400  /* over AS */
+#define WAPI_AUTH_PSK       0x0800  /* Pre-shared key */
+#endif /* BCMWAPI_WAI */
+#define WPA2_AUTH_MFP           0x1000  
+#define WPA2_AUTH_TPK		0x2000 	
+#define WPA2_AUTH_FT		0x4000 	
 
 
 #define MAXPMKID        16
@@ -649,12 +663,12 @@ typedef struct wl_assoc_info {
 	uint32      resp_len;
 	uint32      flags;
 	struct dot11_assoc_req req;
-	struct ether_addr reassoc_bssid;
+	struct ether_addr reassoc_bssid;	
 	struct dot11_assoc_resp resp;
 } wl_assoc_info_t;
 
 
-#define WLC_ASSOC_REQ_IS_REASSOC 0x01
+#define WLC_ASSOC_REQ_IS_REASSOC 0x01	
 
 
 typedef struct {
@@ -1292,6 +1306,11 @@ typedef struct wl_po {
 #define WL_CHAN_FREQ_RANGE_5GMH_5BAND    7
 #define WL_CHAN_FREQ_RANGE_5GH_5BAND     8
 
+#define WL_CHAN_FREQ_RANGE_5G_BAND0     1
+#define WL_CHAN_FREQ_RANGE_5G_BAND1     2
+#define WL_CHAN_FREQ_RANGE_5G_BAND2     3
+#define WL_CHAN_FREQ_RANGE_5G_BAND3     4
+
 
 #define WLC_PHY_TYPE_A      0
 #define WLC_PHY_TYPE_B      1
@@ -1363,7 +1382,7 @@ typedef struct wl_po {
 #define PM_MAX  1
 #define PM_FAST 2
 
-#define LISTEN_INTERVAL		10
+#define LISTEN_INTERVAL			10
 
 #define INTERFERE_OVRRIDE_OFF   -1  
 #define INTERFERE_NONE  0   
@@ -1546,7 +1565,7 @@ typedef struct wl_sampledata {
 #define WL_JOIN_PREF_WPA    2   
 #define WL_JOIN_PREF_BAND   3   
 #define WL_JOIN_PREF_RSSI_DELTA 4   
-#define WL_JOIN_PREF_TRANS_PREF	5
+#define WL_JOIN_PREF_TRANS_PREF	5	
 
 
 #define WLJP_BAND_ASSOC_PREF    255 
@@ -1797,17 +1816,19 @@ struct wl_msglevel2 {
 };
 
 typedef struct wl_mkeep_alive_pkt {
-	uint16	version;
-	uint16	length;
+	uint16	version; 
+	uint16	length; 
 	uint32	period_msec;
 	uint16	len_bytes;
-	uint8	keep_alive_id;
+	uint8	keep_alive_id; 
 	uint8	data[1];
 } wl_mkeep_alive_pkt_t;
 
-#define WL_MKEEP_ALIVE_VERSION          1
-#define WL_MKEEP_ALIVE_FIXED_LEN        OFFSETOF(wl_mkeep_alive_pkt_t, data)
-#define WL_MKEEP_ALIVE_PRECISION        500
+#define WL_MKEEP_ALIVE_VERSION		1
+#define WL_MKEEP_ALIVE_FIXED_LEN	OFFSETOF(wl_mkeep_alive_pkt_t, data)
+#define WL_MKEEP_ALIVE_PRECISION	500
+
+
 
 #define WLC_ROAM_TRIGGER_DEFAULT    0 
 #define WLC_ROAM_TRIGGER_BANDWIDTH  1 
@@ -1897,7 +1918,7 @@ typedef struct wl_pfn_param {
 	uint8 mscan; 
 	uint8 repeat; 
 	uint8 exp; 
-	int32 slow_freq;
+	int32 slow_freq; 
 } wl_pfn_param_t;
 
 typedef struct wl_pfn_bssid {
@@ -2424,6 +2445,20 @@ typedef struct assertlog_results {
 #define LOGRRC_FIX_LEN  8
 #define IOBUF_ALLOWED_NUM_OF_LOGREC(type, len) ((len - LOGRRC_FIX_LEN)/sizeof(type))
 
+#ifdef BCMWAPI_WAI
+#define IV_LEN 16 /* XXX, same as SMS4_WPI_PN_LEN */
+struct wapi_sta_msg_t
+{
+	uint16  msg_type;
+	uint16  datalen;
+	uint8   vap_mac[6];
+	uint8   reserve_data1[2];
+	uint8   sta_mac[6];
+	uint8   reserve_data2[2];
+	uint8   gsn[IV_LEN];
+	uint8   wie[256];
+};
+#endif /* BCMWAPI_WAI */
 
 
 
@@ -2753,5 +2788,44 @@ enum {
 	SPATIAL_MODE_5G_UPPER_IDX,
 	SPATIAL_MODE_MAX_IDX
 };
+
+#ifdef SOFTAP
+#define SSID_LEN	33
+#define SEC_LEN		16
+#define KEY_LEN		65
+#define PROFILE_OFFSET	32
+struct ap_profile {
+	uint8	ssid[SSID_LEN];
+	uint8	sec[SEC_LEN];
+	uint8	key[KEY_LEN];
+	uint32	channel;
+	uint32	preamble;
+	uint32	max_scb;
+	uint32  closednet;
+	char country_code[WLC_CNTRY_BUF_SZ];
+};
+
+
+#define MACLIST_MODE_DISABLED	0
+#define MACLIST_MODE_DENY		1
+#define MACLIST_MODE_ALLOW		2
+struct mflist {
+	uint count;
+	struct ether_addr ea[16];
+};
+#ifdef CUSTOMER_HW2
+struct mac_list_set {
+	uint32	mode;
+	struct mflist white_list;
+	struct mflist black_list;
+};
+#else
+struct mac_list_set {
+	uint32	mode;
+	struct mflist mac_list;
+};
+#endif
+#endif
+
 
 #endif 

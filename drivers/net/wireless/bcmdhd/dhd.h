@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 290844 2011-10-20 08:54:39Z $
+ * $Id: dhd.h 285377 2011-09-21 17:57:59Z $
  */
 
 /****************
@@ -74,6 +74,7 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
+
 /* Firmware requested operation mode */
 #define STA_MASK			0x0001
 #define HOSTAPD_MASK			0x0002
@@ -82,6 +83,9 @@ enum dhd_bus_state {
 
 /* max sequential rxcntl timeouts to set HANG event */
 #define MAX_CNTL_TIMEOUT  2
+
+#define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
+#define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
 
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
@@ -97,6 +101,7 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_STOP,
 	WAKE_LOCK_SOFTAP_START,
 	WAKE_LOCK_SOFTAP_THREAD,
+	WAKE_LOCK_PROTECT, 
 	WAKE_LOCK_MAX
 };
 
@@ -287,6 +292,7 @@ extern int dhd_os_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val);
+extern void dhd_htc_wake_lock_timeout(dhd_pub_t *pub, int sec);
 
 inline static void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t * dhdp)
 {
@@ -313,6 +319,8 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
+
+#define WAKE_LOCK_TIMEOUT(pub, sec)		dhd_htc_wake_lock_timeout(pub, sec)
 
 #define DHD_PACKET_TIMEOUT	1
 #define DHD_EVENT_TIMEOUT	2
@@ -343,7 +351,8 @@ typedef enum dhd_attach_states
 	DHD_ATTACH_STATE_WAKELOCKS_INIT = 0x40,
 	DHD_ATTACH_STATE_CFG80211 = 0x80,
 	DHD_ATTACH_STATE_EARLYSUSPEND_DONE = 0x100,
-	DHD_ATTACH_STATE_DONE = 0x200
+	DHD_ATTACH_STATE_DONE = 0x200,
+	DHD_ATTACH_STATE_SOFTAP = 0x400   /* leverage for detecting softap is bring up */
 } dhd_attach_states_t;
 
 /* Value -1 means we are unsuccessful in creating the kthread. */
@@ -365,6 +374,11 @@ void dhd_osl_detach(osl_t *osh);
  * bus_hdrlen specifies required headroom for bus module header.
  */
 extern dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen);
+#if defined(WLP2P) && defined(WL_CFG80211)
+/* To allow attach/detach calls corresponding to p2p0 interface  */
+extern int dhd_attach_p2p(dhd_pub_t *);
+extern int dhd_detach_p2p(dhd_pub_t *);
+#endif /* WLP2P && WL_CFG80211 */
 extern int dhd_net_attach(dhd_pub_t *dhdp, int idx);
 
 /* Indication from bus module regarding removal/absence of dongle */
@@ -411,6 +425,7 @@ extern int dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
+extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
 extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid,
@@ -423,7 +438,8 @@ extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 extern bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd);
-extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
+extern bool dhd_check_ap_mode_set(dhd_pub_t *dhd);
+extern int wl_android_black_list_match(char *ea);
 
 #define DHD_UNICAST_FILTER_NUM		0
 #define DHD_BROADCAST_FILTER_NUM	1
@@ -431,6 +447,21 @@ extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 #define DHD_MULTICAST6_FILTER_NUM	3
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
+
+extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
+extern bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd);
+/* HTC_CSP_START*/
+struct dd_pkt_filter_s{
+	int add;
+	int id;
+	int offset;
+	char mask[256];
+	char pattern[256];
+};
+
+extern int dhd_set_pktfilter(dhd_pub_t *dhd, int add, int id, int offset, char *mask, char *pattern);
+extern int wl_android_set_pktfilter(struct net_device *dev, struct dd_pkt_filter_s *data);
+/* HTC_CSP_END*/
 
 #ifdef DHD_DEBUG
 extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
@@ -453,7 +484,8 @@ extern int dhd_timeout_expired(dhd_timeout_t *tmo);
 
 extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
 extern int dhd_net2idx(struct dhd_info *dhd, struct net_device *net);
-extern struct net_device * dhd_idx2net(struct dhd_pub *dhd_pub, int ifidx);
+extern struct net_device * dhd_idx2net(void *pub, int ifidx);
+extern void dhd_state_set_flags(struct dhd_pub *dhd_pub, dhd_attach_states_t flags, int add);
 extern int wl_host_event(dhd_pub_t *dhd_pub, int *idx, void *pktdata,
                          wl_event_msg_t *, void **data_ptr);
 extern void wl_event_to_host_order(wl_event_msg_t * evt);
@@ -486,6 +518,9 @@ extern void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 extern int dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag);
 extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int  dhd_bus_start(dhd_pub_t *dhdp);
+//HTC_CSP_START
+extern void dhd_info_send_hang_message(dhd_pub_t *dhdp);
+//HTC_CSP_END
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
 extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf);
@@ -509,6 +544,10 @@ typedef enum cust_gpio_modes {
 
 extern int wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag);
 extern int wl_iw_send_priv_event(struct net_device *dev, char *flag);
+//HTC_CSP_START
+extern int net_os_send_rssilow_message(struct net_device *dev);
+//HTC_CSP_END
+
 /*
  * Insmod parameters for debug/test
  */
@@ -556,10 +595,18 @@ extern int dhd_idletime;
 /* SDIO Drive Strength */
 extern uint dhd_sdiod_drive_strength;
 
+#ifdef SOFTAP
+extern uint dhd_apsta;
+#endif
+
 /* Override to force tx queueing all the time */
 extern uint dhd_force_tx_queueing;
+#ifdef CUSTOMER_HW2
+#define KEEP_ALIVE_PERIOD 60000
+#else
 /* Default KEEP_ALIVE Period is 55 sec to prevent AP from sending Keep Alive probe frame */
 #define KEEP_ALIVE_PERIOD 55000
+#endif
 #define NULL_PKT_STR	"null_pkt"
 
 #ifdef SDTEST
@@ -588,6 +635,27 @@ extern uint dhd_download_fw_on_driverload;
 #define DHD_MAX_IFS	16
 #define DHD_DEL_IF	-0xe
 #define DHD_BAD_IF	-0xf
+#ifdef PNO_SUPPORT
+#define MAX_PFN_NUMBER	2
+/* HTC_CSP_START */
+#define PFN_SCAN_FREQ	300 /* in secs */
+/* HTC_CSP_END */
+#define PFN_WAKE_TIME	20000	/* in mini secs */
+int dhd_set_pfn_ssid(char * ssid, int ssid_len);
+int dhd_del_pfn_ssid(char * ssid, int ssid_len);
+void dhd_clear_pfn(void);
+int dhd_set_pfn(dhd_pub_t *dhd, int enabled);
+#endif
+
+/* Packet Filter */
+enum pkt_filter_id {
+	ALLOW_UNICAST = 100,
+	ALLOW_ARP,
+	ALLOW_DHCP,
+	ALLOW_IPV4_MULTICAST,
+	ALLOW_IPV6_MULTICAST,
+};
+int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, char *pattern);
 
 #ifdef PROP_TXSTATUS
 /* Please be mindful that total pkttag space is 32 octets only */
@@ -718,8 +786,33 @@ int dhd_os_wlfc_unblock(dhd_pub_t *pub);
 
 #endif /* PROP_TXSTATUS */
 
+/* HTC_CSP_START */
+/* power control */
+enum dhdhtc_pwr_ctrl{
+	DHDHTC_POWER_CTRL_ANDROID_NORMAL = 0,
+	DHDHTC_POWER_CTRL_BROWSER_LOAD_PAGE,
+	DHDHTC_POWER_CTRL_USER_CONFIG,
+	DHDHTC_POWER_CTRL_WIFI_PHONE,
+	DHDHTC_POWER_CTRL_FOTA_DOWNLOADING,
+	DHDHTC_POWER_CTRL_MAX_NUM,
+};
+extern int dhdhtc_update_wifi_power_mode(int is_screen_off);
+extern int dhdhtc_set_power_control(int power_mode, unsigned int reason);
+extern unsigned int dhdhtc_get_cur_pwr_ctrl(void);
+extern int dhdhtc_update_dtim_listen_interval(int is_screen_off);
+#ifdef BCMSDIOH_STD
+extern int sd_uhsimode;
+#endif
+extern char firmware_path[MOD_PARAM_PATHLEN];
+/* HTC_CSP_END */
+
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
+
+extern int dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8 action);
+#if defined(SOFTAP)
+extern bool ap_fw_loaded;
+#endif
 
 #ifdef ARP_OFFLOAD_SUPPORT
 #define MAX_IPV4_ENTRIES	8
@@ -730,4 +823,27 @@ int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen);
 void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr);
 #endif /* ARP_OFFLOAD_SUPPORT */
 
+/* HTC_CSP_START */
+extern int dhd_get_txrx_stats(struct net_device *net, unsigned long *rx_packets, unsigned long *tx_packets);
+extern bool dhd_APUP;
+extern bool wifi_fail_retry;
+/* HTC_CSP_END */
+
+/* HTC_CSP_START */
+/* The maximum consequent events of "out of bus->txq" */
+#define MAX_TXQ_FULL_EVENT 300
+extern int block_ap_event;
+extern int dhdcdc_power_active_while_plugin;
+extern char wl_abdroid_gatewaybuf[8+1]; /*HTC_KlocWork*/
+/* HTC_CSP_END */
+#ifdef DHD_BCM_WIFI_HDMI
+/* Wireless HDMI run-time enable flag */
+extern bool dhd_bcm_whdmi_enable;
+
+/* Network interface created for the Wireless HDMI soft AP */
+#define DHD_WHDMI_SOFTAP_IF_NAME	"wl0.2"
+#define DHD_WHDMI_SOFTAP_IF_NAME_LEN	5
+#define DHD_WHDMI_SOFTAP_IF_NUM		2
+
+#endif /* DHD_BCM_WIFI_HDMI */
 #endif /* _dhd_h_ */

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c,v 1.72.6.5 2010-12-23 01:13:15 Exp $
+ * $Id: bcmsdh_linux.c 281719 2011-09-02 23:50:57Z $
  */
 
 /**
@@ -134,24 +134,24 @@ bcmsdh_chipmatch(uint16 vendor, uint16 device)
 #if defined(BCMPLATFORM_BUS)
 #if defined(BCMLXSDMMC)
 /* forward declarations */
-int bcmsdh_dhd_probe(struct device *dev);
-int bcmsdh_dhd_remove(struct device *dev);
+int bcmsdh_probe(struct device *dev);
+int bcmsdh_remove(struct device *dev);
 
-EXPORT_SYMBOL(bcmsdh_dhd_probe);
-EXPORT_SYMBOL(bcmsdh_dhd_remove);
+EXPORT_SYMBOL(bcmsdh_probe);
+EXPORT_SYMBOL(bcmsdh_remove);
 
 #else
 /* forward declarations */
-static int __devinit bcmsdh_dhd_probe(struct device *dev);
-static int __devexit bcmsdh_dhd_remove(struct device *dev);
+static int __devinit bcmsdh_probe(struct device *dev);
+static int __devexit bcmsdh_remove(struct device *dev);
 #endif /* BCMLXSDMMC */
 
 #ifndef BCMLXSDMMC
 static struct device_driver bcmsdh_driver = {
 	.name		= "pxa2xx-mci",
 	.bus		= &platform_bus_type,
-	.probe		= bcmsdh_dhd_probe,
-	.remove		= bcmsdh_dhd_remove,
+	.probe		= bcmsdh_probe,
+	.remove		= bcmsdh_remove,
 	.suspend	= NULL,
 	.resume		= NULL,
 	};
@@ -160,7 +160,7 @@ static struct device_driver bcmsdh_driver = {
 #ifndef BCMLXSDMMC
 static
 #endif /* BCMLXSDMMC */
-int bcmsdh_dhd_probe(struct device *dev)
+int bcmsdh_probe(struct device *dev)
 {
 	osl_t *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
@@ -238,9 +238,9 @@ int bcmsdh_dhd_probe(struct device *dev)
 	/* chain SDIO Host Controller info together */
 	sdhc->next = sdhcinfo;
 	sdhcinfo = sdhc;
+
 	/* Read the vendor/device ID from the CIS */
 	vendevid = bcmsdh_query_device(sdh);
-
 	/* try to attach to the target device */
 	if (!(sdhc->ch = drvinfo.attach((vendevid >> 16),
 	                                 (vendevid & 0xFFFF), 0, 0, 0, 0,
@@ -266,7 +266,7 @@ err:
 #ifndef BCMLXSDMMC
 static
 #endif /* BCMLXSDMMC */
-int bcmsdh_dhd_remove(struct device *dev)
+int bcmsdh_remove(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
 	osl_t *osh;
@@ -274,6 +274,7 @@ int bcmsdh_dhd_remove(struct device *dev)
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
 	bcmsdh_detach(sdhc->osh, sdhc->sdh);
+
 	/* find the SDIO Host Controller state for this pdev and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
 		if (sdhc->dev == (void *)dev) {
@@ -289,7 +290,6 @@ int bcmsdh_dhd_remove(struct device *dev)
 		SDLX_MSG(("%s: failed\n", __FUNCTION__));
 		return 0;
 	}
-
 
 	/* release SDIO Host Controller info */
 	osh = sdhc->osh;
@@ -599,9 +599,14 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 
 	dhdp = (dhd_pub_t *)dev_get_drvdata(sdhcinfo->dev);
 
+#ifdef HW_OOB
 	bcmsdh_oob_intr_set(0);
+#endif
 
 	if (dhdp == NULL) {
+#ifndef HW_OOB
+		bcmsdh_oob_intr_set(0);
+#endif
 		SDLX_MSG(("Out of band GPIO interrupt fired way too early\n"));
 		return IRQ_HANDLED;
 	}
@@ -609,13 +614,6 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 	dhdsdio_isr((void *)dhdp->bus);
 
 	return IRQ_HANDLED;
-}
-
-void *bcmsdh_get_drvdata(void)
-{
-	if (!sdhcinfo)
-		return NULL;
-	return dev_get_drvdata(sdhcinfo->dev);
 }
 
 int bcmsdh_register_oob_intr(void * dhdp)
@@ -645,6 +643,13 @@ int bcmsdh_register_oob_intr(void * dhdp)
 	return 0;
 }
 
+void *bcmsdh_get_drvdata(void)
+{
+	if (!sdhcinfo)
+		return NULL;
+	return dev_get_drvdata(sdhcinfo->dev);
+}
+
 void bcmsdh_set_irq(int flag)
 {
 	if (sdhcinfo->oob_irq_registered && sdhcinfo->oob_irq_enable_flag != flag) {
@@ -671,6 +676,7 @@ void bcmsdh_unregister_oob_intr(void)
 	}
 }
 #endif /* defined(OOB_INTR_ONLY) */
+
 /* Module parameters specific to each host-controller driver */
 
 extern uint sd_msglevel;	/* Debug message level */
@@ -694,6 +700,9 @@ module_param(sd_hiok, uint, 0);
 extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);
 
+#ifdef BCMSDIOH_STD
+module_param(sd_uhsimode, int, 0);
+#endif
 
 #ifdef BCMSDH_MODULE
 EXPORT_SYMBOL(bcmsdh_attach);

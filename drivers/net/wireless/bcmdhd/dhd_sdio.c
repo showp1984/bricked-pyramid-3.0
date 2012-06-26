@@ -351,7 +351,7 @@ static const uint retry_limit = 2;
 static bool forcealign;
 
 /* Flag to indicate if we should download firmware on driver load */
-uint dhd_download_fw_on_driverload = TRUE;
+uint dhd_download_fw_on_driverload = FALSE;
 
 #define ALIGNMENT  4
 
@@ -379,6 +379,7 @@ static const uint max_roundup = 512;
 
 /* Try doing readahead */
 static bool dhd_readahead;
+
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
@@ -536,6 +537,9 @@ dhdsdio_set_siaddr_window(dhd_bus_t *bus, uint32 address)
 
 
 /* Turn backplane clock on or off */
+/* HTC_CSP_START */
+static int htclk_fail = 0;
+/* HTC_CSP_END */
 static int
 dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 {
@@ -562,7 +566,7 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
 		if (err) {
 			DHD_ERROR(("%s: HT Avail request error: %d\n", __FUNCTION__, err));
-			return BCME_ERROR;
+			goto error;
 		}
 
 		if (pendok &&
@@ -575,7 +579,7 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		clkctl = bcmsdh_cfg_read(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, &err);
 		if (err) {
 			DHD_ERROR(("%s: HT Avail read error: %d\n", __FUNCTION__, err));
-			return BCME_ERROR;
+			goto error;
 		}
 
 		/* Go to pending and await interrupt if appropriate */
@@ -585,13 +589,14 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			if (err) {
 				DHD_ERROR(("%s: Devctl access error setting CA: %d\n",
 				           __FUNCTION__, err));
-				return BCME_ERROR;
+				goto error;
 			}
 
 			devctl |= SBSDIO_DEVCTL_CA_INT_ONLY;
 			bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_DEVICE_CTL, devctl, &err);
 			DHD_INFO(("CLKCTL: set PENDING\n"));
 			bus->clkstate = CLK_PENDING;
+			htclk_fail = 0;
 			return BCME_OK;
 		} else if (bus->clkstate == CLK_PENDING) {
 			/* Cancel CA-only interrupt filter */
@@ -609,12 +614,12 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		}
 		if (err) {
 			DHD_ERROR(("%s: HT Avail request error: %d\n", __FUNCTION__, err));
-			return BCME_ERROR;
+			goto error;
 		}
 		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
 			DHD_ERROR(("%s: HT Avail timeout (%d): clkctl 0x%02x\n",
 			           __FUNCTION__, PMU_MAX_TRANSITION_DLY, clkctl));
-			return BCME_ERROR;
+			goto error;
 		}
 
 
@@ -653,10 +658,20 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		if (err) {
 			DHD_ERROR(("%s: Failed access turning clock off: %d\n",
 			           __FUNCTION__, err));
-			return BCME_ERROR;
+			goto error;
 		}
 	}
+	htclk_fail = 0;
 	return BCME_OK;
+/* HTC_CSP_START */
+error:
+	htclk_fail++;
+	if (htclk_fail >= 3) {
+		htclk_fail = 0;
+		dhd_info_send_hang_message(bus->dhd);
+	}
+	return BCME_ERROR;
+/* HTC_CSP_END */
 }
 
 /* Change idle/active SD state */
@@ -1176,6 +1191,7 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 		if (!bus->dhd->wlfc_state)
 #endif
 			PKTFREE(osh, pkt, TRUE);
+			DHD_ERROR(("%s: out of bus->txq !!!\n", __FUNCTION__));
 			ret = BCME_NORESOURCE;
 		}
 		else
@@ -1292,6 +1308,10 @@ dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 	return cnt;
 }
 
+/* HTC_CSP_START */
+static int bus_txctl_failed_num = 0;
+/* HTC_CSP_END */
+
 int
 dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 {
@@ -1386,6 +1406,11 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	bus->dhd->txcnt_timeout = 0;
 
 	if (ret == -1) {
+
+/* HTC_CSP_START */
+		bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
+/* HTC_CSP_END */
+
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_CTL_ON()) {
 			prhex("Tx Frame", frame, len);
@@ -1423,9 +1448,6 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 				}
 
 			}
-			if (ret == 0) {
-				bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
-			}
 		} while ((ret < 0) && retries++ < TXRETRIES);
 	}
 
@@ -1441,6 +1463,20 @@ done:
 		bus->dhd->tx_ctlerrs++;
 	else
 		bus->dhd->tx_ctlpkts++;
+
+/* HTC_CSP_START */
+	if (ret) {
+		bus_txctl_failed_num++;
+
+		/* if the bus_txctl failed number is over 3 times, just send HANG event. */
+		if (bus_txctl_failed_num >= 3) {
+			bus_txctl_failed_num = 0;
+			DHD_ERROR(("%s: Event HANG sent up\n", __func__));
+			dhd_info_send_hang_message(bus->dhd);
+		}
+	} else
+		bus_txctl_failed_num = 0;
+/* HTC_CSP_END */
 
 	if (bus->dhd->txcnt_timeout >= MAX_CNTL_TIMEOUT)
 		return -ETIMEDOUT;
@@ -2985,6 +3021,7 @@ exit:
 	return bcmerror;
 }
 
+static bool dhd_bus_do_stop = FALSE;
 void
 dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 {
@@ -3005,6 +3042,7 @@ dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 		dhd_os_sdlock(bus->dhd);
 
 	BUS_WAKE(bus);
+	dhd_bus_do_stop = TRUE;
 
 	/* Change our idea of bus state */
 	bus->dhd->busstate = DHD_BUS_DOWN;
@@ -3057,6 +3095,8 @@ dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	/* Reset some F2 state stuff */
 	bus->rxskip = FALSE;
 	bus->tx_seq = bus->rx_seq = 0;
+
+	dhd_bus_do_stop = FALSE;
 
 	if (enforce_mutex)
 		dhd_os_sdunlock(bus->dhd);
@@ -3135,6 +3175,9 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 			bus->hostintmask &= ~I_HMB_FRAME_IND;
 			bus->hostintmask |= I_XMTDATA_AVAIL;
 		}
+#ifdef HTC_KlocWork
+    if(bus->regs != NULL)
+#endif
 		W_SDREG(bus->hostintmask, &bus->regs->hostintmask, retries);
 
 		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_WATERMARK, (uint8)watermark, &err);
@@ -4412,12 +4455,13 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+#ifndef OOB_INTR_ONLY
 	if (bus->dhd->busstate == DHD_BUS_DOWN) {
 		DHD_ERROR(("%s: Bus down, ret\n", __FUNCTION__));
 		bus->intstatus = 0;
 		return 0;
 	}
-
+#endif
 	/* Start with leftover status bits */
 	intstatus = bus->intstatus;
 
@@ -4678,7 +4722,7 @@ dhdsdio_isr(void *arg)
 	}
 	sdh = bus->sdh;
 
-	if (bus->dhd->busstate == DHD_BUS_DOWN) {
+	if ((bus->dhd->busstate == DHD_BUS_DOWN)&&(!dhd_bus_do_stop)) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		return;
 	}
@@ -5172,13 +5216,16 @@ dhd_dump_cis(uint fn, uint8 *cis)
 }
 #endif /* DHD_DEBUG */
 
+int bcm_add_ie_reverse = 0;
 static bool
 dhdsdio_chipmatch(uint16 chipid)
 {
 	if (chipid == BCM4325_CHIP_ID)
 		return TRUE;
-	if (chipid == BCM4329_CHIP_ID)
+	if (chipid == BCM4329_CHIP_ID) {
+		bcm_add_ie_reverse = 1;
 		return TRUE;
+	}
 	if (chipid == BCM4315_CHIP_ID)
 		return TRUE;
 	if (chipid == BCM4319_CHIP_ID)
@@ -5443,13 +5490,13 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 
 		for (fn = 0; fn <= numfn; fn++) {
 			if (!(cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT))) {
-				DHD_INFO(("dhdsdio_probe: fn %d cis malloc failed\n", fn));
+				DHD_ERROR(("dhdsdio_probe: fn %d cis malloc failed\n", fn));
 				break;
 			}
 			bzero(cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 
 			if ((err = bcmsdh_cis_read(sdh, fn, cis[fn], SBSDIO_CIS_SIZE_LIMIT))) {
-				DHD_INFO(("dhdsdio_probe: fn %d cis read err %d\n", fn, err));
+				DHD_ERROR(("dhdsdio_probe: fn %d cis read err %d\n", fn, err));
 				MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 				break;
 			}
@@ -5458,7 +5505,8 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 
 		while (fn-- > 0) {
 			ASSERT(cis[fn]);
-			MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+			if(cis[fn])
+				MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 		}
 
 		if (err) {
@@ -5768,16 +5816,18 @@ dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh, bool dongle_isolation, bool r
 		return;
 
 	if (bus->sih) {
+#if !defined(BCMLXSDMMC)
 		if (bus->dhd) {
 			dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 		}
-#if !defined(BCMLXSDMMC)
+
 		if (dongle_isolation == FALSE)
 			si_watchdog(bus->sih, 4);
-#endif /* !defined(BCMLXSDMMC) */
+
 		if (bus->dhd) {
 			dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 		}
+#endif /* !defined(BCMLXSDMMC) */
 		si_detach(bus->sih);
 		if (bus->vars && bus->varsz)
 			MFREE(osh, bus->vars, bus->varsz);
@@ -5973,6 +6023,93 @@ dhd_bus_set_nvram_params(struct dhd_bus * bus, const char *nvram_params)
 	bus->nvram_params = nvram_params;
 }
 
+/* HTC_CSP_START */
+#define WIFI_MAC_PARAM_STR     "macaddr="
+#define WIFI_MAX_MAC_LEN       17 /* XX:XX:XX:XX:XX:XX */
+
+#define NVS_LEN_OFFSET         0x0C
+#define NVS_DATA_OFFSET                0x40
+
+extern unsigned char *get_wifi_nvs_ram(void);
+
+static uint
+get_mac_from_wifi_nvs_ram(char* buf, unsigned int buf_len)
+{
+	unsigned char *nvs_ptr;
+	unsigned char *mac_ptr;
+	uint len = 0;
+
+	if (!buf || !buf_len) {
+		return 0;
+	}
+
+	nvs_ptr = get_wifi_nvs_ram();
+	if (nvs_ptr) {
+		nvs_ptr += NVS_DATA_OFFSET;
+	}
+
+	mac_ptr = strstr(nvs_ptr, WIFI_MAC_PARAM_STR);
+	if (mac_ptr) {
+		mac_ptr += strlen(WIFI_MAC_PARAM_STR);
+
+		/* skip leading space */
+		while (mac_ptr[0] == ' ') {
+			mac_ptr++;
+		}
+
+		/* locate end-of-line */
+		len = 0;
+		while (mac_ptr[len] != '\r' && mac_ptr[len] != '\n' &&
+				mac_ptr[len] != '\0') {
+			len++;
+		}
+
+		if (len > buf_len) {
+			len = buf_len;
+		}
+		memcpy(buf, mac_ptr, len);
+	}
+
+	return len;
+}
+
+/*
+ * Modify mac address attribute in buffer
+ * return : length of modified buffer
+ */
+static uint
+modify_mac_attr(char* buf, unsigned buf_len, char *mac, unsigned int mac_len)
+{
+	unsigned char *mac_ptr;
+	uint len;
+
+	if (!buf || !mac) {
+		return buf_len;
+	}
+
+	mac_ptr = strstr(buf, WIFI_MAC_PARAM_STR);
+	if (mac_ptr) {
+		mac_ptr += strlen(WIFI_MAC_PARAM_STR);
+
+		/* locate end-of-line */
+		len = 0;
+		while (mac_ptr[len] != '\r' && mac_ptr[len] != '\n' &&
+				mac_ptr[len] != '\0') {
+			len++;
+		}
+
+		if (len != mac_len) {
+			/* shift remaining data */
+			memmove(&mac_ptr[mac_len + 1], &mac_ptr[len + 1], buf_len - len);
+			buf_len = buf_len - len + mac_len;
+		}
+		memcpy(mac_ptr, mac, mac_len);
+	}
+
+	return buf_len;
+}
+/* HTC_CSP_END */
+
 static int
 dhdsdio_download_nvram(struct dhd_bus *bus)
 {
@@ -5983,7 +6120,11 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 	char *bufp;
 	char *pnv_path;
 	bool nvram_file_exists;
-
+/* HTC_CSP_START */
+	char mac[WIFI_MAX_MAC_LEN];
+	unsigned mac_len;
+/* HTC_CSP_END */
+		
 	pnv_path = bus->nv_path;
 
 	nvram_file_exists = ((pnv_path != NULL) && (pnv_path[0] != '\0'));
@@ -5991,6 +6132,7 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 		return (0);
 
 	if (nvram_file_exists) {
+		printf("%s: nvram_path=%s\n", __FUNCTION__, nv_path);
 		image = dhd_os_open_image(pnv_path);
 		if (image == NULL)
 			goto err;
@@ -6006,6 +6148,12 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 	/* Download variables */
 	if (nvram_file_exists) {
 		len = dhd_os_get_image_block(memblock, MAX_NVRAMBUF_SIZE, image);
+		/* HTC_CSP_START */
+		mac_len = get_mac_from_wifi_nvs_ram(mac, WIFI_MAX_MAC_LEN);
+		if (mac_len > 0) {
+			len = modify_mac_attr(memblock, len, mac, mac_len);
+		}
+		/* HTC_CSP_END */
 	}
 	else {
 		len = strlen(bus->nvram_params);
@@ -6060,7 +6208,9 @@ _dhdsdio_download_firmware(struct dhd_bus *bus)
 		return 0;
 #endif
 	}
-
+/* HTC_CSP_START */
+	DHD_DEFAULT(("firmware path = %s \n", bus->fw_path));
+/* HTC_CSP_END */
 	/* Keep arm in reset */
 	if (dhdsdio_download_state(bus, TRUE)) {
 		DHD_ERROR(("%s: error placing ARM core in reset\n", __FUNCTION__));

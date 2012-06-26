@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.15.80.6 2010-12-23 01:13:23 Exp $
+ * $Id: wl_iw.h,v 1.15.80.6 2010-12-23 01:13:23 $
  */
 
 
@@ -70,15 +70,15 @@ struct cntry_locales_custom {
 };
 
 
-#define	WL_IW_RSSI_MINVAL		-200
-#define	WL_IW_RSSI_NO_SIGNAL	 -98
-#define	WL_IW_RSSI_VERY_LOW		 -87
-#define	WL_IW_RSSI_LOW			 -77
-#define	WL_IW_RSSI_GOOD			 -75
-#define	WL_IW_RSSI_VERY_GOOD	 -65
-#define	WL_IW_RSSI_EXCELLENT	 -64
-#define	WL_IW_RSSI_INVALID		   0
-#define	MAX_WX_STRING			  87
+#define	WL_IW_RSSI_MINVAL		-200	
+#define	WL_IW_RSSI_NO_SIGNAL	-91	
+#define	WL_IW_RSSI_VERY_LOW	-80	
+#define	WL_IW_RSSI_LOW		-70	
+#define	WL_IW_RSSI_GOOD		-68	
+#define	WL_IW_RSSI_VERY_GOOD	-58	
+#define	WL_IW_RSSI_EXCELLENT	-57	
+#define	WL_IW_RSSI_INVALID	 0	
+#define MAX_WX_STRING 80
 #define isprint(c) bcm_isprint(c)
 #define WL_IW_SET_ACTIVE_SCAN	(SIOCIWFIRSTPRIV+1)
 #define WL_IW_GET_RSSI			(SIOCIWFIRSTPRIV+3)
@@ -96,8 +96,11 @@ struct cntry_locales_custom {
 #define AP_LPB_CMD              (SIOCIWFIRSTPRIV+23)
 #define WL_AP_STOP              (SIOCIWFIRSTPRIV+25)
 #define WL_FW_RELOAD            (SIOCIWFIRSTPRIV+27)
-#define WL_AP_STA_DISASSOC		(SIOCIWFIRSTPRIV+29)
-#define WL_COMBO_SCAN           (SIOCIWFIRSTPRIV+31)
+/* HTC_CSP_START */
+#define WL_SET_AP_TXPWR         (SIOCIWFIRSTPRIV+29)
+/* HTC_CSP_END */
+#define WL_AP_STA_DISASSOC		(SIOCIWFIRSTPRIV+31)
+#define WL_COMBO_SCAN           (SIOCIWFIRSTPRIV+33)
 
 
 #define			G_SCAN_RESULTS 8*1024
@@ -159,35 +162,7 @@ typedef enum broadcast_first_scan {
 	BROADCAST_SCAN_FIRST_RESULT_READY,
 	BROADCAST_SCAN_FIRST_RESULT_CONSUMED
 } broadcast_first_scan_t;
-#ifdef SOFTAP
-#define SSID_LEN	33
-#define SEC_LEN		16
-#define KEY_LEN		65
-#define PROFILE_OFFSET	32
-struct ap_profile {
-	uint8	ssid[SSID_LEN];
-	uint8	sec[SEC_LEN];
-	uint8	key[KEY_LEN];
-	uint32	channel; 
-	uint32	preamble;
-	uint32	max_scb;	
-	uint32  closednet;  
-	char country_code[WLC_CNTRY_BUF_SZ];
-};
 
-
-#define MACLIST_MODE_DISABLED	0
-#define MACLIST_MODE_DENY		1
-#define MACLIST_MODE_ALLOW		2
-struct mflist {
-	uint count;
-	struct ether_addr ea[16];
-};
-struct mac_list_set {
-	uint32	mode;
-	struct mflist mac_list;
-};
-#endif   
 
 #if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
@@ -202,11 +177,13 @@ void wl_iw_detach(void);
 
 extern int net_os_wake_lock(struct net_device *dev);
 extern int net_os_wake_unlock(struct net_device *dev);
+extern int dhd_os_wake_force_unlock(dhd_pub_t *pub);
 extern int net_os_wake_lock_timeout(struct net_device *dev);
 extern int net_os_wake_lock_timeout_enable(struct net_device *dev, int val);
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
+extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int net_os_send_hang_message(struct net_device *dev);
 extern void get_customized_country_code(char *country_iso_code, wl_country_t *cspec);
 
@@ -294,6 +271,7 @@ extern int wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int
 
 extern int wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num);
 
+extern int wl_iw_get_onoff(void);
 
 #define NETDEV_PRIV(dev)	(*(wl_iw_t **)netdev_priv(dev))
 
@@ -301,6 +279,6 @@ extern int wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int c
 #define WPS_ADD_PROBE_REQ_IE_CMD "ADD_WPS_PROBE_REQ_IE "
 #define WPS_DEL_PROBE_REQ_IE_CMD "DEL_WPS_PROBE_REQ_IE "
 #define WPS_PROBE_REQ_IE_CMD_LENGTH 21
-#endif
+#endif 
 
 #endif 
