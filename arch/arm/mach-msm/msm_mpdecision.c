@@ -117,6 +117,10 @@ static int mp_decision(void)
 		} else if (rq_depth <= NwNs_Threshold[index+1]) {
 			if (total_time >= TwTs_Threshold[index+1] ) {
 				new_state = MSM_MPDEC_DOWN;
+                                if (cpu_online((CONFIG_NR_CPUS - 1)))
+		                        if (acpuclk_8x60_get_rate((CONFIG_NR_CPUS - 1)) >
+                                            msm_mpdec_tuners_ins.idle_freq)
+			                        new_state = MSM_MPDEC_IDLE;
 			}
 		} else {
 			new_state = MSM_MPDEC_IDLE;
@@ -165,9 +169,6 @@ static void msm_mpdec_work_thread(struct work_struct *work)
 	case MSM_MPDEC_DOWN:
 		cpu = (CONFIG_NR_CPUS - 1);
 		if (cpu < nr_cpu_ids) {
-			if (cpu_online(cpu))
-				if (acpuclk_8x60_get_rate(cpu) > msm_mpdec_tuners_ins.idle_freq)
-					break;
 			if ((per_cpu(msm_mpdec_cpudata, cpu).online == true) && (cpu_online(cpu))) {
 				cpu_down(cpu);
 				per_cpu(msm_mpdec_cpudata, cpu).online = false;
