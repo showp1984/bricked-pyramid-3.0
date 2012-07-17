@@ -693,7 +693,7 @@ static int eth_stop(struct net_device *net)
 		usb_ep_disable(link->in_ep);
 		usb_ep_disable(link->out_ep);
 		if (netif_carrier_ok(net)) {
-			ERROR(dev, "host still using in/out endpoints\n");
+			INFO(dev, "host still using in/out endpoints\n");
 			usb_ep_enable(link->in_ep, link->in);
 			usb_ep_enable(link->out_ep, link->out);
 		}

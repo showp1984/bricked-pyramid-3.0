@@ -165,7 +165,7 @@ typedef struct dhd_pub {
 	char * pktfilter[100];
 	int pktfilter_count;
 
-	uint8 country_code[WLC_CNTRY_BUF_SZ];
+	wl_country_t dhd_cspec;         /* Current Locale info */
 	char eventmask[WL_EVENTING_MASK_LEN];
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
@@ -187,8 +187,13 @@ typedef struct dhd_pub {
 			while (dhd_mmc_suspend && retry++ != b) { \
 				wait_event_timeout(a, FALSE, HZ/100); \
 			} \
+			if(dhd_mmc_suspend)\
+				printk("dhd_mmc_suspend is true");\
+			if(retry == b)\
+				printk("DHD_PM_RESUME_WAIT: timeout");\
 		} 	while (0)
-	#define DHD_PM_RESUME_WAIT(a) 			_DHD_PM_RESUME_WAIT(a, 30)
+	//#define DHD_PM_RESUME_WAIT(a) 			_DHD_PM_RESUME_WAIT(a, 30)
+        #define DHD_PM_RESUME_WAIT(a)                     _DHD_PM_RESUME_WAIT(a, 500)
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
 	#define DHD_PM_RESUME_RETURN		do { if (dhd_mmc_suspend) return; } while (0)
@@ -546,6 +551,9 @@ enum pkt_filter_id {
 	ALLOW_DHCP,
 	ALLOW_IPV4_MULTICAST,
 	ALLOW_IPV6_MULTICAST,
+// packet filter for Rogers nat keep alive +++
+	DENY_NAT_KEEP_ALIVE = 201
+// packet filter for Rogers nat keep alive ---
 };
 int dhd_set_pktfilter(dhd_pub_t *dhd, int add, int id, int offset, char *mask, char *pattern);
 
@@ -568,5 +576,7 @@ extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
 extern int dhd_get_txrx_stats(struct net_device *net, unsigned long *rx_packets, unsigned long *tx_packets);
 /* The maximum consequent events of "out of bus->txq" */
 #define MAX_TXQ_FULL_EVENT 300
-
+// packet filter for Rogers nat keep alive +++
+extern void dhd_suspend_pktfilter(dhd_pub_t * dhd, int suspend);
+// packet filter for Rogers nat keep alive ---
 #endif /* _dhd_h_ */

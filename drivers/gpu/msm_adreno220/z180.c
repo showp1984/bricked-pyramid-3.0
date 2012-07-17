@@ -157,13 +157,15 @@ static struct z180_device device_2d0 = {
 		.active_cnt = 0,
 		.iomemname = KGSL_2D0_REG_MEMORY,
 		.ftbl = &z180_functable,
-#ifdef CONFIG_HAS_EARLYSUSPEND
 		.display_off = {
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#if 0
 			.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING,
 			.suspend = kgsl_early_suspend_driver,
 			.resume = kgsl_late_resume_driver,
-		},
 #endif
+#endif
+		},
 	},
 };
 
@@ -330,7 +332,7 @@ static void addmarker(struct z180_ringbuffer *rb, unsigned int index)
 static void addcmd(struct z180_ringbuffer *rb, unsigned int index,
 			unsigned int cmd, unsigned int nextcnt)
 {
-	char *ptr = (char *)(rb->cmdbufdesc.hostptr);
+	char * ptr = (char *)(rb->cmdbufdesc.hostptr);
 	unsigned int *p = (unsigned int *)(ptr + (rb_offset(index)
 			   + (Z180_MARKER_SIZE * sizeof(unsigned int))));
 
@@ -587,6 +589,8 @@ static int z180_stop(struct kgsl_device *device)
 {
 	device->ftbl->irqctrl(device, 0);
 	z180_idle(device, KGSL_TIMEOUT_DEFAULT);
+
+	del_timer_sync(&device->idle_timer);
 
 	kgsl_mmu_stop(device);
 
@@ -848,6 +852,7 @@ static int z180_wait(struct kgsl_device *device,
 	else if (timeout == 0) {
 		status = -ETIMEDOUT;
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_HUNG);
+		KGSL_PWR_ERR(device, "state -> HUNG, device %d\n", device->id);
 	} else
 		status = timeout;
 

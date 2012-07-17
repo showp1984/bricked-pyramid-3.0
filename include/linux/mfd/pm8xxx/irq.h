@@ -42,6 +42,9 @@ int pm8xxx_get_irq_stat(struct pm_irq_chip *chip, int irq);
 struct pm_irq_chip * __devinit pm8xxx_irq_init(struct device *dev,
 				const struct pm8xxx_irq_platform_data *pdata);
 int __devexit pm8xxx_irq_exit(struct pm_irq_chip *chip);
+int pm8xxx_get_irq_wake_stat(struct pm_irq_chip *chip, int irq);
+int pm8xxx_get_irq_base(struct pm_irq_chip *chip);
+int pm8xxx_get_irq_it_stat(struct pm_irq_chip *chip, int irq);
 #else
 static inline int pm8xxx_get_irq_stat(struct pm_irq_chip *chip, int irq)
 {
@@ -54,6 +57,22 @@ static inline struct pm_irq_chip * __devinit pm8xxx_irq_init(
 	return ERR_PTR(-ENXIO);
 }
 static inline int __devexit pm8xxx_irq_exit(struct pm_irq_chip *chip)
+{
+	return -ENXIO;
+}
+static inline int pm8xxx_get_wake_stat(struct pm_irq_chip *chip, int irq)
+{
+	return -ENXIO;
+}
+static inline int pm8xxx_get_irq_wake_stat(struct pm_irq_chip *chip, int irq)
+{
+	return -ENXIO;
+}
+static inline int pm8xxx_get_irq_base(struct pm_irq_chip *chip)
+{
+	return -ENXIO;
+}
+static inline int pm8xxx_get_irq_it_stat(struct pm_irq_chip *chip, int irq)
 {
 	return -ENXIO;
 }

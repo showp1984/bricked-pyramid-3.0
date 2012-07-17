@@ -3905,7 +3905,7 @@ static struct pm8058_pwm_pdata pm8058_pwm_data = {
 
 static struct pm8xxx_rtc_platform_data pm8058_rtc_pdata = {
 	.rtc_write_enable	= true,
-	.rtc_alarm_powerup	= false,
+	.rtc_alarm_powerup	= true,
 };
 
 static struct pm8xxx_pwrkey_platform_data pm8058_pwrkey_pdata = {

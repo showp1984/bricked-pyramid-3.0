@@ -61,6 +61,12 @@ typedef struct wl_iw_extra_params {
 	int 	target_channel; 
 } wl_iw_extra_params_t;
 
+struct cntry_locales_custom {
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];      
+	char custom_locale[WLC_CNTRY_BUF_SZ];
+	int32 custom_locale_rev;                
+}; 
+
 #define SOFTAP 1
 
 
@@ -193,6 +199,8 @@ struct mac_list_set {
 #endif /* CUSTOMER_HW2 */
 #endif   
 
+#define DEF_COUNTRY_CODE	"XX"
+
 #if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
 extern const struct iw_handler_def wl_iw_handler_def;
@@ -207,6 +215,7 @@ extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
+extern void get_customized_country_code(char *country_iso_code, wl_country_t *cspec);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define IWE_STREAM_ADD_EVENT(info, stream, ends, iwe, extra) \
@@ -233,7 +242,7 @@ extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, \
 				 int nssid, ushort  scan_fr);
 extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
-void	dhd_bus_country_set(struct net_device *dev, char *country_code);
+void	dhd_bus_country_set(struct net_device *dev, wl_country_t *country_code);
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 
 #define PNO_TLV_PREFIX			'S'

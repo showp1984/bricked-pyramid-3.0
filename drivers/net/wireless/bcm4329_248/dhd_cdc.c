@@ -76,6 +76,10 @@ extern int wl_pattern_atoh(char *src, char *dst);
 
 extern int wifi_get_dot11n_enable(void);
 
+// packet filter for Rogers nat keep alive +++
+extern int filter_reverse;
+// packet filter for Rogers nat keep alive ---
+
 #if defined(SOFTAP)
 extern bool ap_fw_loaded;
 #endif
@@ -713,6 +717,10 @@ char iovbuf[32];
 				/* Enable packet filter, only allow unicast packet to send up */
 				dhd_set_packet_filter(1, dhd);
 #endif
+// packet filter for Rogers nat keep alive +++
+				if (filter_reverse)
+					dhd_suspend_pktfilter(dhd, value);
+// packet filter for Rogers nat keep alive ---
 #if 0
 				/* if dtim skip setup as default force it to wake each thrid dtim
 				 *  for better power saving.
@@ -766,6 +774,12 @@ char iovbuf[32];
 				/* disable pkt filter */
 				dhd_set_packet_filter(0, dhd);
 #endif
+
+// packet filter for Rogers nat keep alive +++
+				if (filter_reverse)
+					dhd_suspend_pktfilter(dhd, value);
+// packet filter for Rogers nat keep alive ---
+
 			dhdhtc_update_wifi_power_mode(is_screen_off);
 			dhdhtc_update_dtim_listen_interval(is_screen_off);
 #if 0
@@ -865,6 +879,76 @@ int dhd_set_keepalive(int value)
 #endif
 
 #ifdef CUSTOMER_HW2
+
+// packet filter for Rogers nat keep alive +++
+#define DEFAULT_MAX_NUM_FILTERS	8
+static int pkt_filter_element[DEFAULT_MAX_NUM_FILTERS] = {0};
+void dhd_suspend_pktfilter(dhd_pub_t * dhd, int suspend)
+{
+	wl_pkt_filter_enable_t	enable_parm;
+	int i, pkt_id = 0;
+	char buf[256];
+	uint filter_mode = 0;	
+
+	printk("Enter set packet filter in %s\n", suspend?"suspend":"resume");
+
+	/* when suspend, enable id > 200, disable id < 200. vice vesa */
+
+	if (suspend) {
+		for (i = 0; i < DEFAULT_MAX_NUM_FILTERS; i++) {
+			pkt_id = pkt_filter_element[i];
+			if (pkt_id) {
+				if (pkt_id < 200) {
+					/* disable it!! */
+					enable_parm.id = htod32(pkt_id);
+					enable_parm.enable = htod32(0);
+					bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+						sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+					dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+				} else {
+					/* enable it!! */
+					enable_parm.id = htod32(pkt_id);
+					enable_parm.enable = htod32(1);
+					bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+						sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+					dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+				}
+			}
+		}
+		
+		bcm_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, buf, sizeof(buf));
+		dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+	} else {
+		for (i = 0; i < DEFAULT_MAX_NUM_FILTERS; i++) {
+			pkt_id = pkt_filter_element[i];
+			if (pkt_id) {
+				if (pkt_id >= 200) {
+					/* disable it!! */
+					enable_parm.id = htod32(pkt_id);
+					enable_parm.enable = htod32(0);
+					bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+						sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+					dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+				} else {
+					/* enable it!! */
+					enable_parm.id = htod32(pkt_id);
+					enable_parm.enable = htod32(1);
+					bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+						sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+					dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+				}
+			}
+		}
+
+		filter_mode = 1;
+		bcm_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, buf, sizeof(buf));
+		dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+	}
+
+	return;
+}
+// packet filter for Rogers nat keep alive ---
+
 int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, char *pattern)
 {
 	char 				*str;
@@ -877,6 +961,10 @@ int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, 
 	char buf[256];
 	int pkt_id = id;
 	wl_pkt_filter_enable_t	enable_parm;
+
+// packet filter for Rogers nat keep alive +++
+	int i, empty = 0, empty_found = 0;
+// packet filter for Rogers nat keep alive ---
 
 	printf("Enter set packet filter\n");
 
@@ -900,6 +988,14 @@ int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, 
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
 
 	if (!add) {
+// packet filter for Rogers nat keep alive +++
+		if (filter_reverse) {
+			for (i = 0; i < DEFAULT_MAX_NUM_FILTERS; i++) {
+				if (pkt_filter_element[i] == pkt_id)
+					pkt_filter_element[i] = 0;
+			}
+		}
+// packet filter for Rogers nat keep alive ---
 		return 0;
 	}
 
@@ -954,11 +1050,45 @@ int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, 
 
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, buf_len);
 
-	enable_parm.id = htod32(pkt_id);
-	enable_parm.enable = htod32(1);
-	bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
-		sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
-	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+// packet filter for Rogers nat keep alive +++
+	/* only enabled if id < 200, and not in suspend mod */
+	if (filter_reverse) {
+		if ((pkt_id < 200)&&(!dhd->in_suspend)) {
+// packet filter for Rogers nat keep alive ---
+			enable_parm.id = htod32(pkt_id);
+			enable_parm.enable = htod32(1);
+
+			bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+				sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+// packet filter for Rogers nat keep alive +++
+		}
+
+		for (i = 0; i < DEFAULT_MAX_NUM_FILTERS; i++) {
+			if (!empty_found && (pkt_filter_element[i] == 0)) {
+				empty_found = 1;
+				empty = i;
+			}
+			if (pkt_filter_element[i] == pkt_id) /* item already exist, skip it */
+				break;
+		}
+
+		if (i == DEFAULT_MAX_NUM_FILTERS) {
+			/* add this item to list */
+			if (empty_found)
+				pkt_filter_element[empty] = pkt_id;
+			else
+				printk("no enough room for filter %d!!\n", pkt_id);
+		}		
+	} else {
+		enable_parm.id = htod32(pkt_id);
+		enable_parm.enable = htod32(1);
+		
+		bcm_mkiovar("pkt_filter_enable", (char *)&enable_parm,
+			sizeof(wl_pkt_filter_enable_t), buf, sizeof(buf));
+		dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+	}
+// packet filter for Rogers nat keep alive ---
 
 	return 0;
 }
@@ -1047,11 +1177,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif  /* GET_CUSTOM_MAC_ENABLE */
 
 	/* Set Country code */
-	if (dhd->country_code[0] != 0) {
-		if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_COUNTRY,
-			dhd->country_code, sizeof(dhd->country_code)) < 0) {
+	if (dhd->dhd_cspec.ccode[0] != 0) {
+		bcm_mkiovar("country", (char *)&dhd->dhd_cspec, sizeof(wl_country_t), buf, sizeof(buf));
+		if ((ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf))) < 0)
 			DHD_ERROR(("%s: country code setting failed\n", __FUNCTION__));
-		}
 	}
 
 	/* Set Listen Interval */
@@ -1199,6 +1328,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_set_pktfilter(dhd, 1, ALLOW_DHCP, 0, "0xffffffffffff000000000000ffff00000000000000000000000000000000000000000000ffff", "0xffffffffffff0000000000000800000000000000000000000000000000000000000000000044");
 	dhd_set_pktfilter(dhd, 1, ALLOW_IPV6_MULTICAST, 0, "0xffff", "0x3333");
 #endif
+// packet filter for Rogers nat keep alive +++
+	if (filter_reverse)
+		dhd_set_pktfilter(dhd, 1, DENY_NAT_KEEP_ALIVE, 26, "0xFFFF0000000000000000FFFFFFFF", "0xC123880000000000000011940009");
+// packet filter for Rogers nat keep alive ---
 #else
 	dhd->pktfilter_count = 1;
 	/* Setup filter to allow only unicast */

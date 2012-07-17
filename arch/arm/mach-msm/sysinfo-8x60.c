@@ -193,6 +193,9 @@ void sysinfo_proc_init(void)
 	entry = create_proc_read_entry("processor_name", 0, NULL, processor_name_read_proc, NULL);
 	CHECK_PROC_ENTRY("processor_name", entry);
 
+	entry = create_proc_read_entry("dying_processes", 0, NULL, dying_processors_read_proc, NULL);
+	CHECK_PROC_ENTRY("dying_processes", entry);
+
 	entry = create_proc_entry("ddr_regs", 0, NULL);
 	if (entry)
 		entry->proc_fops = &sys_ddr_regs_proc_fops;

@@ -68,6 +68,7 @@
 #include "msm_serial_hs_hwreg.h"
 
 #include <linux/poison.h>
+#include <linux/delay.h>
 
 static int hs_serial_debug_mask = 1;
 module_param_named(debug_mask, hs_serial_debug_mask,
@@ -1426,6 +1427,10 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 	}
 
 	if (msm_uport->rx.flush != FLUSH_SHUTDOWN) {
+		#ifdef BT_SERIAL_DBG
+		printk(KERN_INFO "[BT]CHK CLK OFF rx.flush:%d\n",
+				msm_uport->rx.flush);
+		#endif
 		if (msm_uport->rx.flush == FLUSH_NONE)
 			msm_hs_stop_rx_locked(uport);
 		return 0;  /* come back later to really clock off */
@@ -1678,6 +1683,7 @@ msm_uartdm_ioctl(struct uart_port *uport, unsigned int cmd, unsigned long arg)
 #ifdef USE_BCM_BT_CHIP	/* bt for brcm */
 	void __user *argp = (void __user *)arg;
 	unsigned long tbt_wakeup_level;
+	int i = 0;
 
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	struct msm_hs_tx *tx = &msm_uport->tx;
@@ -1685,14 +1691,26 @@ msm_uartdm_ioctl(struct uart_port *uport, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case 0x8003:
+		/* aquire tx wakelock */
+		wake_lock(&tx->brcm_tx_wake_lock);
+
+#if 1/* should we add a if(), only block when RFR is disable? */
+		/* block at most 300 ms if CLK=MSM_HS_CLK_REQUEST_OFF */
+		for (i=0; i<15; i++) {
+			if(msm_uport->clk_state == MSM_HS_CLK_REQUEST_OFF) {
+				msleep(20);
+				printk(KERN_INFO "[BT]Wait CLK off, round:%d, CLK:%d\n",
+					i, msm_uport->clk_state);
+			} else {
+				break;
+			}
+		}
+#endif
 		spin_lock_irqsave(&uport->lock, tflags);
 		#ifdef BT_SERIAL_DBG
 		printk(KERN_INFO "[BT]-- HOST BT_WAKE=LOW, %d --\n",
 				msm_uport->clk_state);
 		#endif
-
-		/* aquire tx wakelock */
-		wake_lock(&tx->brcm_tx_wake_lock);
 
 		if (msm_uport->bt_wakeup_pin_supported) {
 			gpio_set_value(msm_uport->bt_wakeup_pin,

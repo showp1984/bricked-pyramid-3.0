@@ -128,7 +128,6 @@ static int kgsl_regread_nolock(struct kgsl_device *device,
 	return 0;
 }
 
-#define ADRENO_ISTORE_START 0x5000
 static ssize_t kgsl_istore_read(
 	struct file *file,
 	char __user *buff,
@@ -144,7 +143,8 @@ static ssize_t kgsl_istore_read(
 		return 0;
 
 	adreno_dev = ADRENO_DEVICE(device);
-	count = adreno_dev->istore_size * ADRENO_ISTORE_WORDS;
+	count = adreno_dev->istore_size * adreno_dev->instruction_size;
+
 	remaining = count;
 	for (i = 0; i < count; i += rowc) {
 		unsigned int vals[rowc];

@@ -171,3 +171,41 @@ dhd_custom_get_mac_address(unsigned char *buf)
 	return 0;
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */
+
+/* Customized Locale table : OPTIONAL feature */
+const struct cntry_locales_custom translate_custom_table[] = {
+	/* Table should be filled out based on custom platform regulatory requirement */
+	{"KR", "KR", 3}, /* input ISO "KR" to : KR/3 */
+	{"AM", "BT", 0},  /* Armenia */
+	{"FO", "RO", 0},  /* Faroe Islands */
+	{"GE", "KW", 0},  /* Georgia */
+	{"KZ", "AG", 0},  /* Kazakhstan */
+};
+
+
+/* Customized Locale convertor
+ *  input : ISO 3166-1 country abbreviation
+ *  output: customized cspec
+ */
+void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
+{
+	int size, i;
+
+	size = ARRAYSIZE(translate_custom_table);
+
+	if (cspec == 0)
+		return;
+
+	if (size == 0)
+		return;
+
+	for (i = 0; i < size; i++) {
+		if (strcmp(country_iso_code, translate_custom_table[i].iso_abbrev) == 0) {
+			memcpy(cspec->ccode,
+					translate_custom_table[i].custom_locale, WLC_CNTRY_BUF_SZ);
+			cspec->rev = translate_custom_table[i].custom_locale_rev;
+			return;
+		}
+	}
+	return;
+}

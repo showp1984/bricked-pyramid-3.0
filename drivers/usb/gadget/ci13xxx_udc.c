@@ -1765,15 +1765,15 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	mReq->req.status = mReq->ptr->token & TD_STATUS;
 	if ((TD_STATUS_HALTED & mReq->req.status) != 0) {
-		USB_ERR("%s: HALTED EP%d %s %6d\n", __func__, mEp->num,
+		USB_WARNING("%s: HALTED EP%d %s %6d\n", __func__, mEp->num,
 			((mEp->dir == TX)? "I":"O"), mReq->req.length);
 		mReq->req.status = -1;
 	} else if ((TD_STATUS_DT_ERR & mReq->req.status) != 0) {
-		USB_ERR("%s: DT_ERR EP%d %s %6d\n", __func__, mEp->num,
+		USB_WARNING("%s: DT_ERR EP%d %s %6d\n", __func__, mEp->num,
 			((mEp->dir == TX)? "I":"O"), mReq->req.length);
 		mReq->req.status = -1;
 	} else if ((TD_STATUS_TR_ERR & mReq->req.status) != 0) {
-		USB_ERR("%s: TR_ERR EP%d %s %6d\n", __func__, mEp->num,
+		USB_WARNING("%s: TR_ERR EP%d %s %6d\n", __func__, mEp->num,
 			((mEp->dir == TX)? "I":"O"), mReq->req.length);
 		mReq->req.status = -1;
 	}

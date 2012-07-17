@@ -894,16 +894,23 @@ wl_iw_set_country(
 	int country_code_size;
 	channel_info_t ci;
 	int retry = 0;
+	uint32 chan_buf[WL_NUMCHANNELS + 1];
+	wl_uint32_list_t *list;
+	scb_val_t scbval;
+	int chan = 1;
+	wl_country_t cspec = {{0}, 0, {0}};
+	char smbuf[WL_EVENTING_MASK_LEN + 12];	
 
-	wl_country_t cspec;
-	char iovbuf[WL_EVENTING_MASK_LEN + 12];	
-
+	cspec.rev = -1;
+	/* disassoc sta */
+	bzero(&scbval, sizeof(scb_val_t));
 	memset(country_code, 0, sizeof(country_code));
+	memset(smbuf, 0, sizeof(smbuf));
+	memset(&ci,0,sizeof(ci));
+	(void) dev_wlc_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t));
+	/* set channel to 1 */
+	dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &chan, sizeof(chan));
 
-#ifdef HTC_KlocWork
-    memset(&ci,0,sizeof(ci));
-#endif
-	
 	country_offset = strcspn(extra, " ");
 	country_code_size = strlen(extra) - country_offset;
 
@@ -912,49 +919,68 @@ wl_iw_set_country(
 		strncpy(country_code, extra + country_offset +1,
 			MIN(country_code_size, sizeof(country_code)));
 
-		/* for 'KR', set revision to 3 for supporting 802.11n */
-		if (country_code[0] == 'K' && country_code[1] == 'R') {
-			memset(&cspec, 0, sizeof(cspec));
-			cspec.country_abbrev[0] = 'K';
-			cspec.country_abbrev[1] = 'R';
-			cspec.country_abbrev[2] = '\0';
-			cspec.ccode[0] = 'K';
-			cspec.ccode[1] = 'R';
-			cspec.ccode[2] = '\0';
-			cspec.rev = 3;
-		}
-
 		WL_DEFAULT(("%s: Try to set country %s\n", __FUNCTION__, country_code));
 get_channel_retry:
 		if ((error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci)))) {
 			WL_ERROR(("%s: get channel fail!\n", __FUNCTION__));
-			goto exit;
+			goto exit_failed;
 		}
 		ci.scan_channel = dtoh32(ci.scan_channel);
 		if (ci.scan_channel) {
 			retry++;
 			WL_ERROR(("%s: scan in progress, retry %d!\n", __FUNCTION__, retry));
 			if (retry > 3)
-				goto exit;
+				goto exit_failed;
 			bcm_mdelay(1000);
 			goto get_channel_retry;
 		}
-		
-		/* for 'KR', set revision to 3 for supporting 802.11n */
-		if (country_code[0] == 'K' && country_code[1] == 'R')
-			error = dev_iw_iovar_setbuf(dev, "country", &cspec, sizeof(cspec), iovbuf, sizeof(iovbuf));
-		else
-			error = dev_wlc_ioctl(dev, WLC_SET_COUNTRY, &country_code, sizeof(country_code));
 
-		if (error >= 0) {
+		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
+		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);
+
+		get_customized_country_code((char *)&cspec.country_abbrev, &cspec);
+
+		if ((error = dev_iw_iovar_setbuf(dev, "country", &cspec,
+						sizeof(cspec), smbuf, sizeof(smbuf))) >= 0) {
 			p += snprintf(p, MAX_WX_STRING, "OK");
-			WL_TRACE(("%s: set country %s OK\n", __FUNCTION__, country_code));
-			dhd_bus_country_set(dev, &country_code[0]);
+			WL_ERROR(("%s: set country for %s as %s rev %d is OK\n",
+						__FUNCTION__, country_code, cspec.ccode, cspec.rev));
+			dhd_bus_country_set(dev, &cspec);
+			WL_ERROR(("%s: Try to get channel list.\n", __FUNCTION__));
+			/* check available channels */
+			if (strcmp(country_code, DEF_COUNTRY_CODE) != 0) {
+				list = (wl_uint32_list_t *)(void *)chan_buf;
+				list->count = htod32(WL_NUMCHANNELS);
+				if ((error = dev_wlc_ioctl(dev, WLC_GET_VALID_CHANNELS, chan_buf, sizeof(chan_buf)))) {
+					WL_ERROR(("%s: get channel list fail!\n", __FUNCTION__));
+					goto exit_failed;
+				}
+				/* if NULL, set default country code instead and set country code again */
+				WL_TRACE(("%s: channel_count = %d\n", __FUNCTION__, list->count));
+				if (list->count == 0) {
+					strcpy(country_code, DEF_COUNTRY_CODE);
+					retry = 0;
+					goto get_channel_retry;
+				}
+			}
 			goto exit;
+		}
+		/* may be the country code is not supported, set default country */
+		else {
+			if (strcmp(country_code, DEF_COUNTRY_CODE) != 0) {
+				WL_ERROR(("%s: set country for %s as %s rev %d failed\n",
+							__FUNCTION__, country_code, cspec.ccode, cspec.rev));
+				strcpy(country_code, DEF_COUNTRY_CODE);
+				retry = 0;
+				goto get_channel_retry;
+			}
 		}
 	}
 
-	WL_ERROR(("%s: set country %s failed code %d\n", __FUNCTION__, country_code, error));
+	WL_ERROR(("%s: set country for %s as %s rev %d failed\n",
+				__FUNCTION__, country_code, cspec.ccode, cspec.rev));
+
+exit_failed:
 	p += snprintf(p, MAX_WX_STRING, "FAIL");
 
 exit:
@@ -7430,6 +7456,7 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 	int res = 0;
 	int apsta_var = 0;
 	int closednet = 0;
+	wl_country_t cspec = {{0}, 0, {0}};
 #ifndef AP_ONLY
 	int iolen = 0;
 	int bsscfg_index = 1;
@@ -7547,7 +7574,11 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 			ap->country_code, sizeof(ap->country_code))) >= 0) {
 			WL_SOFTAP(("%s: set country %s OK\n",
 				__FUNCTION__, ap->country_code));
-			dhd_bus_country_set(dev, &ap->country_code[0]);
+			cspec.rev = -1;
+			memcpy(cspec.country_abbrev, ap->country_code, WLC_CNTRY_BUF_SZ);
+			memcpy(cspec.ccode, ap->country_code, WLC_CNTRY_BUF_SZ);
+			get_customized_country_code((char *)&cspec.country_abbrev, &cspec);
+			dhd_bus_country_set(dev, &cspec);
 		} else {
 			WL_ERROR(("%s: ERROR:%d setting country %s\n",
 				__FUNCTION__, error, ap->country_code));

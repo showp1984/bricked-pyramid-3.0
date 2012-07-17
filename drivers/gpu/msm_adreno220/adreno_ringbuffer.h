@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2002,2007-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -64,7 +64,7 @@ struct adreno_ringbuffer {
 
 #define GSL_RB_WRITE(ring, gpuaddr, data) \
 	do { \
-		writel_relaxed(data, ring); \
+		*ring = data; \
 		wmb(); \
 		kgsl_cffdump_setmem(gpuaddr, data, 4); \
 		ring++; \
@@ -93,7 +93,7 @@ struct adreno_ringbuffer {
 #define GSL_RB_CNTL_NO_UPDATE 0x0 /* enable */
 #define GSL_RB_GET_READPTR(rb, data) \
 	do { \
-		*(data) = readl_relaxed(&(rb)->memptrs->rptr); \
+		*(data) = rb->memptrs->rptr; \
 	} while (0)
 #else
 #define GSL_RB_CNTL_NO_UPDATE 0x1 /* disable */
@@ -104,6 +104,13 @@ struct adreno_ringbuffer {
 #endif /* GSL_RB_USE_MEMRPTR */
 
 #define GSL_RB_CNTL_POLL_EN 0x0 /* disable */
+
+/*
+ * protected mode error checking below register address 0x800
+ * note: if CP_INTERRUPT packet is used then checking needs
+ * to change to below register address 0x7C8
+ */
+#define GSL_RB_PROTECTED_MODE_CONTROL		0x200001F2
 
 int adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 				struct kgsl_context *context,
@@ -126,6 +133,8 @@ void adreno_ringbuffer_issuecmds(struct kgsl_device *device,
 					unsigned int *cmdaddr,
 					int sizedwords);
 
+void adreno_ringbuffer_submit(struct adreno_ringbuffer *rb);
+
 void kgsl_cp_intrcallback(struct kgsl_device *device);
 
 int adreno_ringbuffer_extract(struct adreno_ringbuffer *rb,
@@ -135,6 +144,9 @@ int adreno_ringbuffer_extract(struct adreno_ringbuffer *rb,
 void
 adreno_ringbuffer_restore(struct adreno_ringbuffer *rb, unsigned int *rb_buff,
 			int num_rb_contents);
+
+unsigned int *adreno_ringbuffer_allocspace(struct adreno_ringbuffer *rb,
+					     unsigned int numcmds);
 
 static inline int adreno_ringbuffer_count(struct adreno_ringbuffer *rb,
 	unsigned int rptr)

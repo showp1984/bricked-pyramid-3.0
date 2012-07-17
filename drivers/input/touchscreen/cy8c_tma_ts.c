@@ -1277,7 +1277,7 @@ static int cy8c_ts_probe(struct i2c_client *client,
 	}
 
 	ret = request_threaded_irq(client->irq, NULL, cy8c_ts_irq_thread,
-			  IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "cy8c_ts", ts);
+			  IRQF_TRIGGER_LOW | IRQF_ONESHOT, "cy8c_ts", ts);
 	if (ret != 0) {
 		dev_err(&client->dev, "TOUCH_ERR: request_irq failed\n");
 		dev_err(&client->dev, "TOUCH_ERR: don't support method without irq\n");

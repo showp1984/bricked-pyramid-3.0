@@ -23,6 +23,8 @@
 #include <linux/mfd/pmic8058.h>
 #include <linux/mfd/pm8xxx/core.h>
 #include <linux/msm_adc.h>
+#include <linux/syscore_ops.h>
+#include <mach/irqs.h>
 
 #define REG_MPP_BASE			0x50
 #define REG_IRQ_BASE			0x1BB
@@ -1180,6 +1182,45 @@ bail:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+extern int msm_show_resume_irq_mask;
+static void pm8058_show_resume_irq(void)
+{
+	int i, irq;
+	struct pm_irq_chip *chip = pmic_chip->irq_chip;
+
+	if (!msm_show_resume_irq_mask || !chip)
+		return;
+
+	for (i = 0; i < NR_PMIC8058_IRQS; i++) {
+		irq = i + pm8xxx_get_irq_base(chip);
+		if (pm8xxx_get_irq_wake_stat(chip, irq)) {
+			if (pm8xxx_get_irq_it_stat(chip, irq))
+				pr_warning("%s: %d triggered\n", __func__, irq);
+		}
+	}
+}
+
+static int pm8058_suspend(void)
+{
+	return 0;
+}
+
+static void pm8058_resume(void)
+{
+	pm8058_show_resume_irq();
+}
+
+#else
+#define pm8058_suspend NULL
+#define pm8058_resume NULL
+#endif
+
+static struct syscore_ops pm8058_pm = {
+	.suspend = pm8058_suspend,
+	.resume = pm8058_resume,
+};
+
 static int __devinit pm8058_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -1204,6 +1245,7 @@ static int __devinit pm8058_probe(struct platform_device *pdev)
 
 	mutex_init(&pmic->pm_lock);
 	pmic_chip = pmic;
+	register_syscore_ops(&pm8058_pm);
 
 	/* Read PMIC chip revision */
 	rc = pm8058_readb(pmic->dev, PM8058_REG_REV, &pmic->revision);

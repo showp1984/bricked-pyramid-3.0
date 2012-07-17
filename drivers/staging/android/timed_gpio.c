@@ -62,10 +62,15 @@ static void gpio_enable(struct timed_output_dev *dev, int value)
 		container_of(dev, struct timed_gpio_data, dev);
 	unsigned long	flags;
 
-	spin_lock_irqsave(&data->lock, flags);
-
 	/* cancel previous timer and set GPIO according to value */
-	hrtimer_cancel(&data->timer);
+retry:
+	spin_lock_irqsave(&data->lock, flags);
+	if (hrtimer_try_to_cancel(&data->timer) < 0) {
+		spin_unlock_irqrestore(&data->lock, flags);
+		cpu_relax();
+		goto retry;
+	}
+
 	gpio_direction_output(data->gpio, data->active_low ? !value : !!value);
 
 	if (value > 0) {

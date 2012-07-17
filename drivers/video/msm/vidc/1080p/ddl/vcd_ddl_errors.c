@@ -29,6 +29,11 @@ static u32 ddl_handle_dec_seq_hdr_fail_error(struct ddl_client_context *ddl);
 static void print_core_errors(u32 error_code);
 static void print_core_recoverable_errors(u32 error_code);
 
+/* HTC_START */
+int mTotalErrorFrames = 0;
+const static int mTotalErrorFramesCanAccept = 10;
+/* HTC_END */
+
 void ddl_hw_fatal_cb(struct ddl_client_context *ddl)
 {
 	struct ddl_context *ddl_context = ddl->ddl_context;
@@ -245,6 +250,9 @@ static u32 ddl_handle_core_recoverable_errors(
 	case VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED:
 		vcd_status = VCD_ERR_BITSTREAM_ERR;
 		DDL_MSG_ERROR("VIDC_BIT_STREAM_ERR");
+		/* HTC_START */
+		mTotalErrorFrames++;
+		/* HTC_END */
 		break;
 	case VIDC_1080P_ERROR_B_FRAME_NOT_SUPPORTED:
 	case VIDC_1080P_ERROR_UNSUPPORTED_FEATURE_IN_PROFILE:
@@ -252,11 +260,30 @@ static u32 ddl_handle_core_recoverable_errors(
 		if (ddl->decoding) {
 			vcd_status = VCD_ERR_BITSTREAM_ERR;
 			DDL_MSG_ERROR("VIDC_BIT_STREAM_ERR");
+			/* HTC_START */
+			mTotalErrorFrames++;
+			/* HTC_END */
 		}
 		break;
 	default:
 		break;
 	}
+
+	/* HTC_START */
+	if (mTotalErrorFrames >= mTotalErrorFramesCanAccept) {
+		DDL_MSG_ERROR("Too many corrupted frames...");
+		vcd_status = ddl_context->cmd_err_status;
+
+		DDL_MSG_FATAL("VIDC_HW_FATAL");
+		ddl->cmd_state = DDL_CMD_INVALID;
+		ddl_context->device_state = DDL_DEVICE_HWFATAL;
+
+		ddl_context->ddl_callback(VCD_EVT_IND_HWERRFATAL, VCD_ERR_HW_FATAL,
+				&vcd_status, sizeof(vcd_status),
+				(u32 *)ddl, ddl->client_data);
+		mTotalErrorFrames = 0;
+	}
+	/* HTC_END */
 
 	if (((vcd_status) || (vcd_event != VCD_EVT_RESP_INPUT_DONE)) &&
 		!status) {
