@@ -123,13 +123,15 @@ static void check_temp(struct work_struct *work)
 			continue;
 		}
 
+		/* save pre-throttled max freq value */
+                if (thermal_throttled == 0)
+                        pre_throttled_max = cpu_policy->max;
+
 		//low trip point
 		if ((temp >= msm_thermal_tuners_ins.allowed_low_high) &&
 		    (temp < msm_thermal_tuners_ins.allowed_mid_high) &&
 		    (cpu_policy->max > msm_thermal_tuners_ins.allowed_low_freq)) {
 			update_policy = 1;
-			/* save pre-throttled max freq value */
-			pre_throttled_max = cpu_policy->max;
 			max_freq = msm_thermal_tuners_ins.allowed_low_freq;
 			thermal_throttled = 1;
 			pr_warn("msm_thermal: Thermal Throttled (low)! temp: %lu\n", temp);
