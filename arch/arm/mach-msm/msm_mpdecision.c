@@ -367,12 +367,23 @@ static ssize_t store_pause(struct kobject *a, struct attribute *b,
 static ssize_t store_idle_freq(struct kobject *a, struct attribute *b,
 				   const char *buf, size_t count)
 {
-	long unsigned int input;
+	long unsigned int input, check;
 	int ret;
 	ret = sscanf(buf, "%lu", &input);
 	if (ret != 1)
 		return -EINVAL;
-	msm_mpdec_tuners_ins.idle_freq = acpu_check_khz_value(input);
+
+	check = acpu_check_khz_value(input);
+
+	if (check == 1) {
+		msm_mpdec_tuners_ins.idle_freq = input;
+	}
+	if (check == 0) {
+		msm_mpdec_tuners_ins.idle_freq = MSM_MPDEC_IDLE_FREQ;
+	}
+	if (check > 1) {
+		msm_mpdec_tuners_ins.idle_freq = check;
+	}
 
 	return count;
 }
